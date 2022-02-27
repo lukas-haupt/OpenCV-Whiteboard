@@ -7,14 +7,14 @@ The focus is on tracking hand movements, drawing and saving,
 due to applicable hand gesture recognition, as well as other useful extensions.
 """
 
-import sys
-import os
 import copy
 import datetime as dt
 import math
-import numpy as np
+import os
+
 import cv2 as cv
 import mediapipe as mp
+import numpy as np
 
 __author__ = "Lukas Haupt"
 __credits__ = ["Lukas Haupt"]
@@ -39,7 +39,7 @@ HAND_INDICES = 21
 SEPARATOR = "_"
 FILE_FORMAT = ".jpg"
 SELECT_TOLERANCE = 40
-ERASE_TOLERANCE = 15
+ERASE_TOLERANCE = 20
 
 cam = None
 w_screen = None
