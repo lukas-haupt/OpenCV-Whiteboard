@@ -26,35 +26,52 @@ __status__ = "Production"
 ###################################################################################################
 # GLOBALS                                                                                         #
 ###################################################################################################
+
+# Frame
 WIDTH = 640
 HEIGHT = 480
 NUMBER_OF_COLOR_CHANNELS = 3
+
+# Colors
 WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-SPACER = np.full((HEIGHT, 2, NUMBER_OF_COLOR_CHANNELS), BLACK, np.uint8)
+color_options = [
+    ["Black", (0, 0, 0)],
+    ["Blue", (255, 0, 0)],
+    ["Green", (0, 255, 0)],
+    ["Red", (0, 0, 255)]
+]
+color = None
+color_key = 0
+color_label = color_options[0][0]
+AMOUNT_COLORS = len(color_options)
+
+# Display
+SPACER = np.full((HEIGHT, 2, NUMBER_OF_COLOR_CHANNELS), color_options[0][1], np.uint8)
 FONT = cv.FONT_HERSHEY_SIMPLEX
 LINE_TYPE = cv.LINE_AA
+
+# Calculations
 HAND_INDICES = 21
-SEPARATOR = "_"
-FILE_FORMAT = ".jpg"
 SELECT_TOLERANCE = 40
 ERASE_TOLERANCE = 20
+COLOR_TOLERANCE = 20
 
+# Image saving
+SEPARATOR = "_"
+FILE_FORMAT = ".jpg"
+
+# Image variables
 cam = None
 w_screen = None
 w_screen_cached = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
 exit_program = 0
 
-# Variables for drawing a line
+# Manipulation
 first_draw = True
 draw_start = None
 draw_end = None
-
-# Variable for saving the current image
 first_save = True
-
-# Variable for current index fingertip position
+first_color_change = True
 latest_index_tip_position = []
 
 # Mediapipe variables for drawing hand tracking coordinates
@@ -87,14 +104,21 @@ def release_variables():
     cv.destroyAllWindows()
 
 
-def show_windows(capture=None, screen=None, gesture=None):
+def show_windows(capture=None, screen=None, gesture=None, col=""):
     """ Display images in a single window """
     global exit_program
 
     capture = cv.cvtColor(capture, cv.COLOR_RGB2BGR)
     capture = cv.flip(capture, 1)
-    capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, BLACK, 2, LINE_TYPE)
-    capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, GREEN, 1, LINE_TYPE)
+
+    # Gesture
+    capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
+    capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
+
+    # Color
+    capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
+    capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
+
     screen = cv.flip(screen, 1)
     cv.imshow("AI Whiteboard", np.hstack((capture, SPACER, screen)))
     if cv.waitKey(1) == ord("q"):
@@ -109,6 +133,7 @@ def check_user_gesture(landmarks=None):
     erase_flag = False
     save_flag = False
     clear_flag = False
+    color_flag = False
 
     # Split x and y coordinates into two separate arrays
     lm = np.array(landmarks)
@@ -153,6 +178,14 @@ def check_user_gesture(landmarks=None):
         save_flag = False
         clear_flag = False
 
+    # Gesture SELECT COLOR
+    for e in lmy[:12] + lmy[13:]:
+        if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOLERANCE and lmy[1] < lmy[0]:
+            color_flag = True
+        else:
+            color_flag = False
+            break
+
     if draw_flag:
         return "draw"
     if select_flag:
@@ -163,10 +196,15 @@ def check_user_gesture(landmarks=None):
         return "save"
     if clear_flag:
         return "clear"
+    if color_flag:
+        # Gesture: SWITCH COLOR
+        if lmx[4] < lmx[6]:
+            return "switch color"
+        return "select color"
     return "unknown"
 
 
-def show_current_index_tip_position(coord=None, color=BLACK):
+def show_current_index_tip_position(coord=None, col=color_options[0][1]):
     """ Set a circle around the index fingertip on the screen, so that the current position is shown """
     global w_screen
     global w_screen_cached
@@ -183,7 +221,7 @@ def reverse_current_finger_tip_position():
     w_screen = copy.deepcopy(w_screen_cached)
 
 
-def draw(coord=None, color=BLACK, thickness=2):
+def draw(coord=None, col=color, thickness=2):
     """ Function that is reliable for drawing the users input
 
     first_draw: flag is set to True, if the draw function has been called the first time
@@ -201,8 +239,26 @@ def draw(coord=None, color=BLACK, thickness=2):
         draw_end = None
     else:
         draw_end = coord
-        w_screen = cv.line(w_screen, draw_start, draw_end, color, thickness=thickness, lineType=LINE_TYPE)
+        w_screen = cv.line(w_screen, draw_start, draw_end, col, thickness=thickness, lineType=LINE_TYPE)
         draw_start = draw_end
+
+
+def switch_color():
+    global color_options
+    global color
+    global color_key
+    global color_label
+    global first_color_change
+
+    if first_color_change:
+        first_color_change = False
+        if color_key + 1 < AMOUNT_COLORS:
+            color_key += 1
+        else:
+            color_key = 0
+
+    color = color_options[color_key][1]
+    color_label = color_options[color_key][0]
 
 
 def save_screen():
@@ -250,6 +306,9 @@ def run():
     global mp_hands
     global first_draw
     global first_save
+    global color
+    global color_label
+    global first_color_change
 
     with mp_hands.Hands(
             max_num_hands=1,
@@ -289,8 +348,13 @@ def run():
                 index_tip = landmarks[8]
                 gesture = check_user_gesture(landmarks)
 
+                if gesture == "switch color":
+                    switch_color()
+                else:
+                    first_color_change = True
+
                 if gesture == "draw":
-                    draw(index_tip, BLACK, 2)
+                    draw(index_tip, color, 2)
                 elif gesture == "erase":
                     draw(index_tip, WHITE, 20)
                 else:
@@ -300,11 +364,12 @@ def run():
                     save_screen()
                 else:
                     first_save = True
+
                 if gesture == "clear":
                     clear_screen()
 
             show_current_index_tip_position(index_tip)
-            show_windows(frame, w_screen, gesture)
+            show_windows(frame, w_screen, gesture, color_label)
 
 
 ###################################################################################################
