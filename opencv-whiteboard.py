@@ -51,6 +51,9 @@ first_draw = True
 draw_start = None
 draw_end = None
 
+# Variable for saving the current image
+first_save = True
+
 # Variable for current index fingertip position
 latest_index_tip_position = []
 
@@ -205,23 +208,27 @@ def draw(coord=None, color=BLACK, thickness=2):
 def save_screen():
     """ Save the current whiteboard screen into a subdirectory """
     global w_screen
+    global first_save
 
     # Create the sub folder, if it does not exist
     sub_folder = "/Saves"
     path = os.getcwd() + sub_folder
     try:
         access_mode = 0o755
-        os.mkdir(path=path, mode=access_mode, )
+        os.mkdir(path=path, mode=access_mode)
     except FileExistsError:
         pass
 
     # Get current date
     current_date = dt.datetime.now()
-    date_str = SEPARATOR.join(("", str(current_date.year), str(current_date.month), str(current_date.day)))
+    date_str = SEPARATOR.join(("", str(current_date.year), str(current_date.month), str(current_date.day),
+                               str(current_date.hour), str(current_date.minute), str(current_date.second)))
 
-    # Save w_screen
-    filename = "savedImage" + date_str + FILE_FORMAT
-    cv.imwrite(os.path.join(path, filename), cv.flip(w_screen, 1))
+    if first_save:
+        # Save w_screen
+        filename = "savedImage" + date_str + FILE_FORMAT
+        cv.imwrite(os.path.join(path, filename), cv.flip(w_screen, 1))
+        first_save = False
 
 
 def clear_screen():
@@ -242,6 +249,7 @@ def run():
     global mp_drawing_styles
     global mp_hands
     global first_draw
+    global first_save
 
     with mp_hands.Hands(
             max_num_hands=1,
@@ -290,6 +298,8 @@ def run():
 
                 if gesture == "save":
                     save_screen()
+                else:
+                    first_save = True
                 if gesture == "clear":
                     clear_screen()
 
