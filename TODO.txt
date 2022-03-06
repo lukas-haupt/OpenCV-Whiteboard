@@ -6,6 +6,7 @@
 	- Geste für das Radieren ändern
 	- Gesten auf Optimalität überprüfen
 	- Toolbar in Window benutzen - Ja?/Nein?
+	- Benutzung durch beide Hände (aktuell: rechte Hand)
 	
 	Bugs:
 	- Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
