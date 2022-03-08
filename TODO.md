@@ -9,7 +9,7 @@
 - [ ] Benutzung durch beide Hände (aktuell: rechte Hand)
 	
 ## Bugs:
-- [ ] Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
+- [x] Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
 - [ ] Untere Capture-Screen kann nicht für Gesten benutzt werden
 
 # Auf NVIDIA Jetson Nano lauffähig bekommen
