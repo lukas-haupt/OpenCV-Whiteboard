@@ -11,7 +11,8 @@ import copy
 import datetime as dt
 import math
 import os
-
+import tkinter
+from tkinter import filedialog as fd
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -120,7 +121,7 @@ def show_windows(capture=None, screen=None, gesture=None, col=""):
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
 
     screen = cv.flip(screen, 1)
-    cv.imshow("AI Whiteboard", np.hstack((capture, SPACER, screen)))
+    cv.imshow("OpenCV-Whiteboard", np.hstack((capture, SPACER, screen)))
     if cv.waitKey(1) == ord("q"):
         exit_program = 1
     reverse_current_finger_tip_position()
@@ -285,6 +286,14 @@ def save_screen():
         filename = "savedImage" + date_str + FILE_FORMAT
         cv.imwrite(os.path.join(path, filename), cv.flip(w_screen, 1))
         first_save = False
+
+
+def load_image():
+    global w_screen
+
+    tkinter.Tk().withdraw()
+    filename = fd.askopenfilename()
+    w_screen = cv.flip(cv.imread(filename), 1)
 
 
 def clear_screen():
