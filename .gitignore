@@ -1,1 +1,6 @@
+# Exclude saved images
 /Saves
+
+# Exclude README and TODO
+README.md
+TODO.md
