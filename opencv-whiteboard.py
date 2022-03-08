@@ -31,6 +31,7 @@ __status__ = "Production"
 WIDTH = 640
 HEIGHT = 480
 NUMBER_OF_COLOR_CHANNELS = 3
+window_name = "OpenCV-Whiteboard"
 
 # Colors
 WHITE = (255, 255, 255)
@@ -89,7 +90,9 @@ def setup_windows():
     """ Initialize global variables cam and w_screen for the capture device and the white screen """
     global cam
     global w_screen
+    global window_name
 
+    cv.namedWindow(window_name)
     w_screen = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
     cam = cv.VideoCapture(-1)
     cam.set(cv.CAP_PROP_FRAME_WIDTH, WIDTH)
@@ -107,6 +110,7 @@ def release_variables():
 def show_windows(capture=None, screen=None, gesture=None, col=""):
     """ Display images in a single window """
     global exit_program
+    global window_name
 
     capture = cv.cvtColor(capture, cv.COLOR_RGB2BGR)
     capture = cv.flip(capture, 1)
@@ -120,8 +124,10 @@ def show_windows(capture=None, screen=None, gesture=None, col=""):
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
 
     screen = cv.flip(screen, 1)
-    cv.imshow("AI Whiteboard", np.hstack((capture, SPACER, screen)))
-    if cv.waitKey(1) == ord("q"):
+    cv.imshow(window_name, np.hstack((capture, SPACER, screen)))
+
+    # Check if window has been closed by "q" or by default window close
+    if cv.waitKey(1) == ord("q") or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
         exit_program = 1
     reverse_current_finger_tip_position()
 
