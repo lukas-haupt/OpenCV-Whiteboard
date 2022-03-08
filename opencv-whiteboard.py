@@ -11,6 +11,8 @@ import copy
 import datetime as dt
 import math
 import os
+import tkinter
+from tkinter import filedialog as fd
 
 import cv2 as cv
 import mediapipe as mp
@@ -268,6 +270,25 @@ def switch_color():
 
 
 def save_screen():
+    global w_screen
+
+    # Create the sub folder, if it does not exist
+    sub_folder = "/Saves"
+    path = os.getcwd() + sub_folder
+    try:
+        access_mode = 0o755
+        os.mkdir(path=path, mode=access_mode)
+    except FileExistsError:
+        pass
+
+    tkinter.Tk().withdraw()
+    filename = fd.asksaveasfilename(defaultextension="", initialdir=path, filetypes=[("Images", ".jpg")])
+
+    if filename:
+        cv.imwrite(filename, cv.flip(w_screen, 1))
+
+
+def quicksave_screen():
     """ Save the current whiteboard screen into a subdirectory """
     global w_screen
     global first_save
@@ -367,7 +388,7 @@ def run():
                     first_draw = True
 
                 if gesture == "save":
-                    save_screen()
+                    quicksave_screen()
                 else:
                     first_save = True
 
