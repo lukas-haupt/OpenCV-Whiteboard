@@ -376,6 +376,14 @@ def quicksave_screen():
         first_save = False
 
 
+def load_image():
+    global w_screen
+
+    tkinter.Tk().withdraw()
+    filename = fd.askopenfilename()
+    w_screen = cv.flip(cv.imread(filename), 1)
+
+
 def clear_screen():
     """ Get a new blank whiteboard screen """
     global w_screen
