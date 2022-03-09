@@ -11,7 +11,7 @@ import copy
 import datetime as dt
 import math
 import os
-
+import screeninfo as si
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -27,11 +27,14 @@ __status__ = "Production"
 # GLOBALS                                                                                         #
 ###################################################################################################
 
-# Frame
-WIDTH = 640
-HEIGHT = 480
+# Whiteboard variables
+whiteboard_width = 0
+whiteboard_height = 0
+whiteboard_offset_x = 0
+whiteboard_offset_y = 0
 NUMBER_OF_COLOR_CHANNELS = 3
 window_name = "OpenCV-Whiteboard"
+cam_window_name = "Camera"
 
 # Colors
 WHITE = (255, 255, 255)
@@ -47,7 +50,6 @@ color_label = color_options[0][0]
 AMOUNT_COLORS = len(color_options)
 
 # Display
-SPACER = np.full((HEIGHT, 2, NUMBER_OF_COLOR_CHANNELS), color_options[0][1], np.uint8)
 FONT = cv.FONT_HERSHEY_SIMPLEX
 LINE_TYPE = cv.LINE_AA
 
@@ -63,8 +65,12 @@ FILE_FORMAT = ".jpg"
 
 # Image variables
 cam = None
+cam_width = 640
+cam_height = 480
+
 w_screen = None
-w_screen_cached = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+w_screen_cached = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+
 exit_program = 0
 
 # Manipulation
@@ -81,6 +87,21 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
 
+def get_screen_resolution():
+    """ Get the resolution and offset of the primary monitor """
+    global whiteboard_width
+    global whiteboard_height
+    global whiteboard_offset_x
+    global whiteboard_offset_y
+
+    for m in si.get_monitors():
+        if m.is_primary:
+            whiteboard_width = m.width
+            whiteboard_height = m.height
+            whiteboard_offset_x = m.x
+            whiteboard_offset_y = m.y
+
+
 def distance(coord1=None, coord2=None):
     """ Calculate the euclidean distance between two hand landmarks """
     return math.sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
@@ -91,12 +112,18 @@ def setup_windows():
     global cam
     global w_screen
     global window_name
+    global whiteboard_offset_x
+    global whiteboard_offset_y
 
-    cv.namedWindow(window_name)
-    w_screen = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+    cv.namedWindow(window_name, cv.WINDOW_GUI_NORMAL)
+    cv.namedWindow(cam_window_name)
+    cv.setWindowProperty(window_name, cv.WINDOW_FULLSCREEN, cv.WINDOW_FULLSCREEN)
+    cv.moveWindow(window_name, whiteboard_offset_x, whiteboard_offset_y)
+
+    w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
     cam = cv.VideoCapture(-1)
-    cam.set(cv.CAP_PROP_FRAME_WIDTH, WIDTH)
-    cam.set(cv.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+    cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
+    cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
 
 def release_variables():
@@ -124,7 +151,8 @@ def show_windows(capture=None, screen=None, gesture=None, col=""):
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
 
     screen = cv.flip(screen, 1)
-    cv.imshow(window_name, np.hstack((capture, SPACER, screen)))
+    cv.imshow(cam_window_name, capture)
+    cv.imshow(window_name, screen)
 
     # Check if window has been closed by "q" or by default window close
     if cv.waitKey(1) == ord("q") or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
@@ -296,7 +324,7 @@ def save_screen():
 def clear_screen():
     """ Get a new blank whiteboard screen """
     global w_screen
-    w_screen = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+    w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
 
 
 def run():
@@ -339,8 +367,8 @@ def run():
                 for hand_landmarks in results.multi_hand_landmarks:
                     for lm in hand_landmarks.landmark:
                         # Adjust hand gesture coordinates to absolute frame values
-                        lmx = int(lm.x * WIDTH)
-                        lmy = int(lm.y * HEIGHT)
+                        lmx = int(lm.x * cam_width)
+                        lmy = int(lm.y * cam_height)
                         landmarks.append([lmx, lmy])
 
                     mp_drawing.draw_landmarks(
@@ -382,6 +410,7 @@ def run():
 # MAIN FUNCTION                                                                                   #
 ###################################################################################################
 def main():
+    get_screen_resolution()
     setup_windows()
     run()
     release_variables()
