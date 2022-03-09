@@ -1,7 +1,7 @@
 # Weitere Features implementieren und Quelltext optimieren
 - [x] Ladefuntion
 - [x] Speichern mit custom filename sowie über Hand-Geste (Quicksave)
-- [ ] Windows/Anzeigen-Layout verändern
+- [x] Windows/Anzeigen-Layout verändern
 - [x] Auswahl einer benutzerdefinierten Auflösung (Achtung: mit Whiteboard kompatibel) -> Fullscreen
 - [ ] Geste für das Radieren ändern
 - [ ] Gesten auf Optimalität überprüfen
