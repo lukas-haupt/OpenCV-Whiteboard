@@ -13,6 +13,7 @@ import math
 import os
 import tkinter
 from tkinter import filedialog as fd
+import screeninfo as si
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
@@ -28,10 +29,13 @@ __status__ = "Production"
 # GLOBALS                                                                                         #
 ###################################################################################################
 
-# Frame
-WIDTH = 640
-HEIGHT = 480
+# Whiteboard variables
+whiteboard_width = 0
+whiteboard_height = 0
+whiteboard_offset_x = 0
+whiteboard_offset_y = 0
 NUMBER_OF_COLOR_CHANNELS = 3
+window_name = "OpenCV-Whiteboard"
 
 # Colors
 WHITE = (255, 255, 255)
@@ -47,7 +51,6 @@ color_label = color_options[0][0]
 AMOUNT_COLORS = len(color_options)
 
 # Display
-SPACER = np.full((HEIGHT, 2, NUMBER_OF_COLOR_CHANNELS), color_options[0][1], np.uint8)
 FONT = cv.FONT_HERSHEY_SIMPLEX
 LINE_TYPE = cv.LINE_AA
 
@@ -63,8 +66,13 @@ FILE_FORMAT = ".jpg"
 
 # Image variables
 cam = None
+cam_width = 640
+cam_height = 480
+SCALED_CAM = (480, 360)
+
 w_screen = None
-w_screen_cached = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+w_screen_cached = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+
 exit_program = 0
 
 # Manipulation
@@ -75,10 +83,35 @@ first_save = True
 first_color_change = True
 latest_index_tip_position = []
 
+# Scale factor for index fingertip position
+scale = [0, 0]
+
 # Mediapipe variables for drawing hand tracking coordinates
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
+
+
+def get_screen_resolution():
+    """
+    Get the resolution and offset of the primary monitor,
+    as well as the scaling factor for the index fingertip point
+    """
+    global whiteboard_width
+    global whiteboard_height
+    global whiteboard_offset_x
+    global whiteboard_offset_y
+    global scale
+
+    for m in si.get_monitors():
+        if m.is_primary:
+            whiteboard_width = m.width
+            whiteboard_height = m.height
+            whiteboard_offset_x = m.x
+            whiteboard_offset_y = m.y
+
+    scale[0] = whiteboard_width / cam_width
+    scale[1] = whiteboard_height / cam_height
 
 
 def distance(coord1=None, coord2=None):
@@ -90,11 +123,20 @@ def setup_windows():
     """ Initialize global variables cam and w_screen for the capture device and the white screen """
     global cam
     global w_screen
+    global window_name
+    global whiteboard_offset_x
+    global whiteboard_offset_y
+    global cam_width
+    global cam_height
 
-    w_screen = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+    cv.namedWindow(window_name, cv.WINDOW_GUI_NORMAL)
+    cv.setWindowProperty(window_name, cv.WINDOW_FULLSCREEN, cv.WINDOW_FULLSCREEN)
+    cv.moveWindow(window_name, whiteboard_offset_x, whiteboard_offset_y)
+
+    w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
     cam = cv.VideoCapture(-1)
-    cam.set(cv.CAP_PROP_FRAME_WIDTH, WIDTH)
-    cam.set(cv.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+    cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
+    cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
 
 def release_variables():
@@ -105,26 +147,38 @@ def release_variables():
     cv.destroyAllWindows()
 
 
-def show_windows(capture=None, screen=None, gesture=None, col=""):
-    """ Display images in a single window """
+def show_window(capture=None, index_coord=None, gesture="", col=color_options[0][1]):
+    """ Display image in a single window """
+    global w_screen
+    global w_screen_cached
     global exit_program
+    global window_name
 
+    # Create a deep copy of the whiteboard screen
+    w_screen_cached = copy.deepcopy(w_screen)
+
+    # Modify capture frame
     capture = cv.cvtColor(capture, cv.COLOR_RGB2BGR)
     capture = cv.flip(capture, 1)
-
-    # Gesture
     capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
     capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
-
-    # Color
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
+    capture = cv.resize(capture, SCALED_CAM, 0, 0, interpolation=cv.INTER_CUBIC)
 
-    screen = cv.flip(screen, 1)
-    cv.imshow("OpenCV-Whiteboard", np.hstack((capture, SPACER, screen)))
-    if cv.waitKey(1) == ord("q"):
+    if index_coord is not None:
+        w_screen = cv.circle(w_screen, center=index_coord, radius=3, color=color, thickness=1, lineType=LINE_TYPE)
+
+    w_screen = cv.flip(w_screen, 1)
+
+    # Lay camera above whiteboard screen
+    w_screen[0:capture.shape[0], 0:capture.shape[1]] = capture
+
+    cv.imshow(window_name, w_screen)
+
+    # Check if window has been closed by "q" or by default window close
+    if cv.waitKey(1) == ord("q") or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
         exit_program = 1
-    reverse_current_finger_tip_position()
 
 
 def check_user_gesture(landmarks=None):
@@ -138,7 +192,32 @@ def check_user_gesture(landmarks=None):
 
     # Split x and y coordinates into two separate arrays
     lm = np.array(landmarks)
-    lmx, lmy = zip(*lm)
+    lmx_n, lmy_n = zip(*lm)
+
+    lmx = []
+    lmy = []
+
+    # Calculate angle
+    ang = math.acos(abs(lmy_n[5]-lmy_n[0])/abs(math.sqrt((lmy_n[5]-lmy_n[0])**2+(lmx_n[5]-lmx_n[0])**2)))
+
+    # Rotation over 90°
+    if lmy_n[0] < lmy_n[5]:
+        ang = math.pi/2 + (math.pi/2-ang)
+
+    # Rotation anticlockwise
+    if lmx_n[0] < lmx_n[5]:
+        ang *= -1
+
+    # Offset
+    ang -= .5
+
+    # Rotation
+    for i in range(len(lmx_n)):
+        x = lmx_n[i]
+        y = lmy_n[i]
+        lmx.append(math.cos(ang)*x - math.sin(ang)*y)
+        lmy.append(math.sin(ang)*x + math.cos(ang)*y)
+
 
     # Gesture: DRAW
     for e in lmy[:6] + lmy[9:]:
@@ -205,18 +284,8 @@ def check_user_gesture(landmarks=None):
     return "unknown"
 
 
-def show_current_index_tip_position(coord=None, col=color_options[0][1]):
-    """ Set a circle around the index fingertip on the screen, so that the current position is shown """
-    global w_screen
-    global w_screen_cached
-    w_screen_cached = copy.deepcopy(w_screen)
-
-    if coord is not None:
-        w_screen = cv.circle(w_screen, center=coord, radius=3, color=color, thickness=1, lineType=LINE_TYPE)
-
-
-def reverse_current_finger_tip_position():
-    """ Reset the screen to the latest change before adding the index fingertip circle """
+def reverse_custom_layers():
+    """ Reset the screen to the latest change before adding custom layers """
     global w_screen
     global w_screen_cached
     w_screen = copy.deepcopy(w_screen_cached)
@@ -263,6 +332,25 @@ def switch_color():
 
 
 def save_screen():
+    global w_screen
+
+    # Create the sub folder, if it does not exist
+    sub_folder = "/Saves"
+    path = os.getcwd() + sub_folder
+    try:
+        access_mode = 0o755
+        os.mkdir(path=path, mode=access_mode)
+    except FileExistsError:
+        pass
+
+    tkinter.Tk().withdraw()
+    filename = fd.asksaveasfilename(defaultextension="", initialdir=path, filetypes=[("Images", ".jpg")])
+
+    if filename:
+        cv.imwrite(filename, cv.flip(w_screen, 1))
+
+
+def quicksave_screen():
     """ Save the current whiteboard screen into a subdirectory """
     global w_screen
     global first_save
@@ -299,7 +387,7 @@ def load_image():
 def clear_screen():
     """ Get a new blank whiteboard screen """
     global w_screen
-    w_screen = np.full((HEIGHT, WIDTH, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+    w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
 
 
 def run():
@@ -318,6 +406,7 @@ def run():
     global color
     global color_label
     global first_color_change
+    global scale
 
     with mp_hands.Hands(
             max_num_hands=1,
@@ -334,7 +423,7 @@ def run():
             frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             results = hands.process(frame)
             gesture = "unknown"
-            index_tip = None
+            scaled_index_tip = None
 
             if results.multi_hand_landmarks:
                 # Array for gesture prediction
@@ -342,8 +431,8 @@ def run():
                 for hand_landmarks in results.multi_hand_landmarks:
                     for lm in hand_landmarks.landmark:
                         # Adjust hand gesture coordinates to absolute frame values
-                        lmx = int(lm.x * WIDTH)
-                        lmy = int(lm.y * HEIGHT)
+                        lmx = int(lm.x * cam_width)
+                        lmy = int(lm.y * cam_height)
                         landmarks.append([lmx, lmy])
 
                     mp_drawing.draw_landmarks(
@@ -355,6 +444,10 @@ def run():
                     )
 
                 index_tip = landmarks[8]
+
+                # Scale index fingertip position according to the scaling factor
+                scaled_index_tip = [round(a * b) for a, b in zip(index_tip, scale)]
+
                 gesture = check_user_gesture(landmarks)
 
                 if gesture == "switch color":
@@ -363,28 +456,29 @@ def run():
                     first_color_change = True
 
                 if gesture == "draw":
-                    draw(index_tip, color, 2)
+                    draw(scaled_index_tip, color, 2)
                 elif gesture == "erase":
-                    draw(index_tip, WHITE, 20)
+                    draw(scaled_index_tip, WHITE, 20)
                 else:
                     first_draw = True
 
                 if gesture == "save":
-                    save_screen()
+                    quicksave_screen()
                 else:
                     first_save = True
 
                 if gesture == "clear":
                     clear_screen()
 
-            show_current_index_tip_position(index_tip)
-            show_windows(frame, w_screen, gesture, color_label)
+            show_window(frame, scaled_index_tip, gesture, color_label)
+            reverse_custom_layers()
 
 
 ###################################################################################################
 # MAIN FUNCTION                                                                                   #
 ###################################################################################################
 def main():
+    get_screen_resolution()
     setup_windows()
     run()
     release_variables()
