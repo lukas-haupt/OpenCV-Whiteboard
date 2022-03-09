@@ -209,7 +209,7 @@ def check_user_gesture(landmarks=None):
         ang *= -1
 
     # Offset
-    ang -= .5
+    ang += .5
 
     # Rotation
     for i in range(len(lmx_n)):
@@ -217,7 +217,6 @@ def check_user_gesture(landmarks=None):
         y = lmy_n[i]
         lmx.append(math.cos(ang)*x - math.sin(ang)*y)
         lmy.append(math.sin(ang)*x + math.cos(ang)*y)
-
 
     # Gesture: DRAW
     for e in lmy[:6] + lmy[9:]:
