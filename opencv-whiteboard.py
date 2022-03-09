@@ -34,7 +34,6 @@ whiteboard_offset_x = 0
 whiteboard_offset_y = 0
 NUMBER_OF_COLOR_CHANNELS = 3
 window_name = "OpenCV-Whiteboard"
-cam_window_name = "Camera"
 
 # Colors
 WHITE = (255, 255, 255)
@@ -67,6 +66,7 @@ FILE_FORMAT = ".jpg"
 cam = None
 cam_width = 640
 cam_height = 480
+SCALED_CAM = (480, 360)
 
 w_screen = None
 w_screen_cached = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
@@ -124,9 +124,10 @@ def setup_windows():
     global window_name
     global whiteboard_offset_x
     global whiteboard_offset_y
+    global cam_width
+    global cam_height
 
     cv.namedWindow(window_name, cv.WINDOW_GUI_NORMAL)
-    cv.namedWindow(cam_window_name)
     cv.setWindowProperty(window_name, cv.WINDOW_FULLSCREEN, cv.WINDOW_FULLSCREEN)
     cv.moveWindow(window_name, whiteboard_offset_x, whiteboard_offset_y)
 
@@ -144,30 +145,38 @@ def release_variables():
     cv.destroyAllWindows()
 
 
-def show_windows(capture=None, screen=None, gesture=None, col=""):
-    """ Display images in a single window """
+def show_window(capture=None, index_coord=None, gesture="", col=color_options[0][1]):
+    """ Display image in a single window """
+    global w_screen
+    global w_screen_cached
     global exit_program
     global window_name
 
+    # Create a deep copy of the whiteboard screen
+    w_screen_cached = copy.deepcopy(w_screen)
+
+    # Modify capture frame
     capture = cv.cvtColor(capture, cv.COLOR_RGB2BGR)
     capture = cv.flip(capture, 1)
-
-    # Gesture
     capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
     capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
-
-    # Color
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
+    capture = cv.resize(capture, SCALED_CAM, 0, 0, interpolation=cv.INTER_CUBIC)
 
-    screen = cv.flip(screen, 1)
-    cv.imshow(cam_window_name, capture)
-    cv.imshow(window_name, screen)
+    if index_coord is not None:
+        w_screen = cv.circle(w_screen, center=index_coord, radius=3, color=color, thickness=1, lineType=LINE_TYPE)
+
+    w_screen = cv.flip(w_screen, 1)
+
+    # Lay camera above whiteboard screen
+    w_screen[0:capture.shape[0], 0:capture.shape[1]] = capture
+
+    cv.imshow(window_name, w_screen)
 
     # Check if window has been closed by "q" or by default window close
     if cv.waitKey(1) == ord("q") or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
         exit_program = 1
-    reverse_current_finger_tip_position()
 
 
 def check_user_gesture(landmarks=None):
@@ -248,18 +257,8 @@ def check_user_gesture(landmarks=None):
     return "unknown"
 
 
-def show_current_index_tip_position(coord=None, col=color_options[0][1]):
-    """ Set a circle around the index fingertip on the screen, so that the current position is shown """
-    global w_screen
-    global w_screen_cached
-    w_screen_cached = copy.deepcopy(w_screen)
-
-    if coord is not None:
-        w_screen = cv.circle(w_screen, center=coord, radius=3, color=color, thickness=1, lineType=LINE_TYPE)
-
-
-def reverse_current_finger_tip_position():
-    """ Reset the screen to the latest change before adding the index fingertip circle """
+def reverse_custom_layers():
+    """ Reset the screen to the latest change before adding custom layers """
     global w_screen
     global w_screen_cached
     w_screen = copy.deepcopy(w_screen_cached)
@@ -417,8 +416,8 @@ def run():
                 if gesture == "clear":
                     clear_screen()
 
-            show_current_index_tip_position(scaled_index_tip)
-            show_windows(frame, w_screen, gesture, color_label)
+            show_window(frame, scaled_index_tip, gesture, color_label)
+            reverse_custom_layers()
 
 
 ###################################################################################################
