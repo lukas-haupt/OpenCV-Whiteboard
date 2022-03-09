@@ -137,7 +137,32 @@ def check_user_gesture(landmarks=None):
 
     # Split x and y coordinates into two separate arrays
     lm = np.array(landmarks)
-    lmx, lmy = zip(*lm)
+    lmx_n, lmy_n = zip(*lm)
+
+    lmx = []
+    lmy = []
+
+    # Calculate angle
+    ang = math.acos(abs(lmy_n[5]-lmy_n[0])/abs(math.sqrt((lmy_n[5]-lmy_n[0])**2+(lmx_n[5]-lmx_n[0])**2)))
+
+    # Rotation over 90°
+    if lmy_n[0] < lmy_n[5]:
+        ang = math.pi/2 + (math.pi/2-ang)
+
+    # Rotation anticlockwise
+    if lmx_n[0] < lmx_n[5]:
+        ang *= -1
+
+    # Offset
+    ang -= .5
+
+    # Rotation
+    for i in range(len(lmx_n)):
+        x = lmx_n[i]
+        y = lmy_n[i]
+        lmx.append(math.cos(ang)*x - math.sin(ang)*y)
+        lmy.append(math.sin(ang)*x + math.cos(ang)*y)
+
 
     # Gesture: DRAW
     for e in lmy[:6] + lmy[9:]:
