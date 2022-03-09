@@ -11,7 +11,7 @@
 	
 ## Bugs:
 - [x] Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
-- [ ] Untere Capture-Screen kann nicht für Gesten benutzt werden
+- [x] Untere Capture-Screen kann nicht für Gesten benutzt werden
 
 # Auf NVIDIA Jetson Nano lauffähig bekommen
 Probleme:
