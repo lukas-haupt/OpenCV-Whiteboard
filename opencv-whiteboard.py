@@ -81,6 +81,9 @@ first_save = True
 first_color_change = True
 latest_index_tip_position = []
 
+# Scale factor for index fingertip position
+scale = [0, 0]
+
 # Mediapipe variables for drawing hand tracking coordinates
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -88,11 +91,15 @@ mp_hands = mp.solutions.hands
 
 
 def get_screen_resolution():
-    """ Get the resolution and offset of the primary monitor """
+    """
+    Get the resolution and offset of the primary monitor,
+    as well as the scaling factor for the index fingertip point
+    """
     global whiteboard_width
     global whiteboard_height
     global whiteboard_offset_x
     global whiteboard_offset_y
+    global scale
 
     for m in si.get_monitors():
         if m.is_primary:
@@ -100,6 +107,9 @@ def get_screen_resolution():
             whiteboard_height = m.height
             whiteboard_offset_x = m.x
             whiteboard_offset_y = m.y
+
+    scale[0] = whiteboard_width / cam_width
+    scale[1] = whiteboard_height / cam_height
 
 
 def distance(coord1=None, coord2=None):
@@ -343,6 +353,7 @@ def run():
     global color
     global color_label
     global first_color_change
+    global scale
 
     with mp_hands.Hands(
             max_num_hands=1,
@@ -359,7 +370,7 @@ def run():
             frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             results = hands.process(frame)
             gesture = "unknown"
-            index_tip = None
+            scaled_index_tip = None
 
             if results.multi_hand_landmarks:
                 # Array for gesture prediction
@@ -380,6 +391,10 @@ def run():
                     )
 
                 index_tip = landmarks[8]
+
+                # Scale index fingertip position according to the scaling factor
+                scaled_index_tip = [round(a * b) for a, b in zip(index_tip, scale)]
+
                 gesture = check_user_gesture(landmarks)
 
                 if gesture == "switch color":
@@ -388,9 +403,9 @@ def run():
                     first_color_change = True
 
                 if gesture == "draw":
-                    draw(index_tip, color, 2)
+                    draw(scaled_index_tip, color, 2)
                 elif gesture == "erase":
-                    draw(index_tip, WHITE, 20)
+                    draw(scaled_index_tip, WHITE, 20)
                 else:
                     first_draw = True
 
@@ -402,7 +417,7 @@ def run():
                 if gesture == "clear":
                     clear_screen()
 
-            show_current_index_tip_position(index_tip)
+            show_current_index_tip_position(scaled_index_tip)
             show_windows(frame, w_screen, gesture, color_label)
 
 
