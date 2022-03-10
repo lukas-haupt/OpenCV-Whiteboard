@@ -7,7 +7,7 @@
 - [ ] Gesten auf Optimalität überprüfen
 - [x] Toolbar in Window benutzen -> Nein
 - [ ] Benutzung durch beide Hände (aktuell: rechte Hand)
-- [ ] Buttons in Window einfügen (bisher Speichern/Laden)
+- [x] Buttons in Window einfügen (bisher Speichern/Laden)
 	
 ## Bugs:
 - [x] Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
