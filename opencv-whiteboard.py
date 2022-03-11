@@ -62,12 +62,9 @@ SELECT_TOLERANCE = 40
 ERASE_TOLERANCE = 20
 COLOR_TOLERANCE = 25
 
-# Buttons
-save = None
-load = None
-
-# Loaded image
+# Button execution
 loaded = None
+cleared = None
 
 # Function called when clicking the appropriate button
 execute = ""
@@ -150,8 +147,6 @@ def setup_windows():
     global whiteboard_offset_y
     global cam_width
     global cam_height
-    global save
-    global load
 
     # Setup main window
     cv.namedWindow(window_name, cv.WINDOW_GUI_NORMAL)
@@ -166,8 +161,9 @@ def setup_windows():
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
     # Create buttons
-    save = create_button("Save")
-    load = create_button("Load")
+    create_button("Save")
+    create_button("Load")
+    create_button("Clear")
 
 
 def create_button(label="", size_x=125, size_y=50):
@@ -194,14 +190,13 @@ def create_button(label="", size_x=125, size_y=50):
     else:
         layers.append([btn, 100, layers[-1][2] + (size_y * 2) if layers else (size_y * 2), label])
 
-    return btn
-
 
 def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
     global mouse
     global w_screen
     global layers
     global execute
+    global cleared
 
     if event == cv.EVENT_MOUSEMOVE:
         mouse[0] = mouse_x
@@ -225,6 +220,8 @@ def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
             save_screen()
         if execute == "Load":
             load_image()
+        if execute == "Clear":
+            cleared = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
 
 
 def release_variables():
@@ -243,10 +240,15 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     global window_name
     global layers
     global loaded
+    global cleared
 
     if loaded is not None:
         w_screen = copy.deepcopy(loaded)
         loaded = None
+
+    if cleared is not None:
+        w_screen = copy.deepcopy(cleared)
+        cleared = None
 
     # Create a deep copy of the whiteboard screen
     w_screen_cached = copy.deepcopy(w_screen)
@@ -450,32 +452,6 @@ def save_screen():
         cv.imwrite(filename, cv.flip(w_screen_cached, 1))
 
 
-def quicksave_screen():
-    """ Save the current whiteboard screen into a subdirectory """
-    global w_screen_cached
-    global first_save
-
-    # Create the sub folder, if it does not exist
-    sub_folder = "/Saves"
-    path = os.getcwd() + sub_folder
-    try:
-        access_mode = 0o755
-        os.mkdir(path=path, mode=access_mode)
-    except FileExistsError:
-        pass
-
-    # Get current date
-    current_date = dt.datetime.now()
-    date_str = SEPARATOR.join(("", str(current_date.year), str(current_date.month), str(current_date.day),
-                               str(current_date.hour), str(current_date.minute), str(current_date.second)))
-
-    if first_save:
-        # Save w_screen_cached
-        filename = "savedImage" + date_str + FILE_FORMAT
-        cv.imwrite(os.path.join(path, filename), cv.flip(w_screen_cached, 1))
-        first_save = False
-
-
 def load_image():
     """ Load an image from the "Saves" subdirectory """
     global execute
@@ -579,15 +555,6 @@ def run():
                     draw(scaled_index_tip, WHITE, 20)
                 else:
                     first_draw = True
-
-                # @todo Discuss: Gesture to save/clear?
-                # if gesture == "save":
-                #     quicksave_screen()
-                # else:
-                #     first_save = True
-
-                # if gesture == "clear":
-                #     clear_screen()
 
             show_window(frame, scaled_index_tip, gesture, color_label)
             reverse_custom_layers()
