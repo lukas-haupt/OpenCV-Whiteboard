@@ -11,6 +11,7 @@ import copy
 import datetime as dt
 import math
 import os
+import sys
 import tkinter
 from tkinter import filedialog as fd
 import screeninfo as si
@@ -286,8 +287,6 @@ def check_user_gesture(landmarks=None):
     draw_flag = False
     select_flag = False
     erase_flag = False
-    save_flag = False
-    clear_flag = False
     color_flag = False
 
     # Split x and y coordinates into two separate arrays
@@ -336,27 +335,6 @@ def check_user_gesture(landmarks=None):
     if distance(lm[4], lm[8]) < ERASE_TOLERANCE:
         erase_flag = True
 
-    # @todo Gesture: SAVE
-    for e in lmy[:2] + lmy[5:]:
-        if e > lmy[2] and lmx[5] > lmx[2] and lmx[9] > lmx[2] and lmx[13] > lmx[2] and lmx[17] > lmx[2]:
-            save_flag = True
-        else:
-            save_flag = False
-            break
-
-    # @todo Gesture: CLEAR
-    for e in lmy[:2] + lmy[5:]:
-        if e < lmy[2] and lmx[5] > lmx[2] and lmx[9] > lmx[2] and lmx[13] > lmx[2] and lmx[17] > lmx[2]:
-            clear_flag = True
-        else:
-            clear_flag = False
-            break
-
-    # Gesture: SAVE/CLEAR - Fingers must be closed for saving or clearing the screen
-    if lmx[8] > lmx[5] or lmx[12] > lmx[9] or lmx[16] > lmx[13] or lmx[20] > lmx[17]:
-        save_flag = False
-        clear_flag = False
-
     # Gesture SELECT COLOR
     for e in lmy[:12] + lmy[13:]:
         if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOLERANCE and lmy[1] < lmy[0]:
@@ -371,10 +349,6 @@ def check_user_gesture(landmarks=None):
         return "select"
     if erase_flag:
         return "erase"
-    if save_flag:
-        return "save"
-    if clear_flag:
-        return "clear"
     if color_flag:
         # Gesture: SWITCH COLOR
         if lmx[4] < lmx[6]:
@@ -454,9 +428,13 @@ def save_screen():
 
 def load_image():
     """ Load an image from the "Saves" subdirectory """
+    global whiteboard_width
+    global whiteboard_height
     global execute
     global loaded
 
+    loaded_height = 0
+    loaded_width = 0
     execute = ""
 
     # Create the sub folder, if it does not exist
@@ -474,6 +452,12 @@ def load_image():
         loaded = cv.flip(cv.imread(filename), 1)
     except TypeError:
         pass
+
+    # Check if loaded image has the same resolution as whiteboard, if not resize the loaded image
+    if loaded is not None:
+        loaded_height, loaded_width, _ = loaded.shape
+        if loaded_height != whiteboard_height or loaded_width != whiteboard_width:
+            loaded = cv.resize(loaded, (whiteboard_width, whiteboard_height), interpolation=cv.INTER_AREA)
 
 
 def clear_screen():
