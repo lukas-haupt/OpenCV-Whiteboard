@@ -12,7 +12,7 @@
 ## Bugs:
 - [x] Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
 - [x] Untere Capture-Screen kann nicht für Gesten benutzt werden
-- [ ] (bei Stefan) Ladefunktion -> ValueError: could not broadcast input array from shape (50,125,3) into shape (0,125,3)
+- [x] (bei Stefan) Ladefunktion -> ValueError: could not broadcast input array from shape (50,125,3) into shape (0,125,3)
 - [ ] (bei Stefan) Fullscreen offset nicht korrekt dargestellt
 
 # Auf NVIDIA Jetson Nano lauffähig bekommen
