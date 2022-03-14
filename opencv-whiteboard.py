@@ -8,10 +8,8 @@ due to applicable hand gesture recognition, as well as other useful extensions.
 """
 
 import copy
-import datetime as dt
 import math
 import os
-import sys
 import tkinter
 from tkinter import filedialog as fd
 import screeninfo as si
@@ -317,7 +315,7 @@ def check_user_gesture(landmarks=None):
             ang -= .5
 
     # Right
-    elif ang > .25 * math.pi and ang < .75 * math.pi:
+    elif .25 * math.pi < ang < .75 * math.pi:
         if lmy_n[5] < lmy_n[17]:
             ang += .5
         else:
@@ -331,7 +329,7 @@ def check_user_gesture(landmarks=None):
             ang -= .5
 
     # Left
-    elif ang < -.25 * math.pi and ang > -.75 * math.pi:
+    elif -.25 * math.pi > ang > -.75 * math.pi:
         if lmy_n[5] > lmy_n[17]:
             ang += .5
         else:
@@ -453,6 +451,20 @@ def save_screen():
         cv.imwrite(filename, cv.flip(w_screen_cached, 1))
 
 
+def backup_screen():
+    global w_screen_cached
+
+    # Create the sub folder, if it does not exist
+    path = os.getcwd() + "/Saves/"
+    try:
+        access_mode = 0o755
+        os.mkdir(path=path, mode=access_mode)
+    except FileExistsError:
+        pass
+
+    cv.imwrite(path + "BACKUP.png", cv.flip(w_screen_cached, 1))
+
+
 def load_image():
     """ Load an image from the "Saves" subdirectory """
     global whiteboard_width
@@ -523,7 +535,9 @@ def run():
             success, frame = cam.read()
             if not success:
                 print("Could not read correctly from open cameras!")
-                continue
+                backup_screen()
+                print("Backup for whiteboard has been made!")
+                break
 
             frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             results = hands.process(frame)
