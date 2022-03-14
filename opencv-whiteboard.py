@@ -208,8 +208,35 @@ def check_user_gesture(landmarks=None):
     if lmx_n[0] < lmx_n[5]:
         ang *= -1
 
-    # Offset
-    ang += .5
+    # Offset for left or right hand
+
+    # Up
+    if abs(ang) <= .25 * math.pi:
+        if lmx_n[5] > lmx_n[17]:
+            ang += .5
+        else:
+            ang -= .5
+
+    # Right
+    elif ang > .25 * math.pi and ang < .75 * math.pi:
+        if lmy_n[5] < lmy_n[17]:
+            ang += .5
+        else:
+            ang -= .5
+
+    # Down
+    elif abs(ang) >= .75 * math.pi:
+        if lmx_n[5] < lmx_n[17]:
+            ang += .5
+        else:
+            ang -= .5
+
+    # Left
+    elif ang < -.25 * math.pi and ang > -.75 * math.pi:
+        if lmy_n[5] > lmy_n[17]:
+            ang += .5
+        else:
+            ang -= .5
 
     # Rotation
     for i in range(len(lmx_n)):
