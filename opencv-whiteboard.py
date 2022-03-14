@@ -11,6 +11,7 @@ import copy
 import datetime as dt
 import math
 import os
+import sys
 import tkinter
 from tkinter import filedialog as fd
 import screeninfo as si
@@ -18,12 +19,12 @@ import cv2 as cv
 import mediapipe as mp
 import numpy as np
 
-__author__ = "Lukas Haupt"
-__credits__ = ["Lukas Haupt"]
-__version__ = "1.0.0"
+__author__ = "Lukas Haupt, Stefan Weisbeck"
+__credits__ = ["Lukas Haupt", "Stefan Weisbeck"]
+__version__ = "1.1.0"
 __maintainer__ = "Lukas Haupt"
 __email__ = "luhaupt@uni-osnabrueck.de"
-__status__ = "Production"
+__status__ = "Development"
 
 ###################################################################################################
 # GLOBALS                                                                                         #
@@ -39,6 +40,8 @@ window_name = "OpenCV-Whiteboard"
 
 # Colors
 WHITE = (255, 255, 255)
+GRAY = (127, 127, 127)
+DARK_GRAY = (63, 63, 63)
 color_options = [
     ["Black", (0, 0, 0)],
     ["Blue", (255, 0, 0)],
@@ -59,6 +62,13 @@ HAND_INDICES = 21
 SELECT_TOLERANCE = 40
 ERASE_TOLERANCE = 20
 COLOR_TOLERANCE = 25
+
+# Button execution
+loaded = None
+cleared = None
+
+# Function called when clicking the appropriate button
+execute = ""
 
 # Image saving
 SEPARATOR = "_"
@@ -82,9 +92,14 @@ draw_end = None
 first_save = True
 first_color_change = True
 latest_index_tip_position = []
+first_append = True
 
 # Scale factor for index fingertip position
 scale = [0, 0]
+
+# Mouse coordinates and interaction list
+mouse = [0, 0]
+layers = []
 
 # Mediapipe variables for drawing hand tracking coordinates
 mp_drawing = mp.solutions.drawing_utils
@@ -119,6 +134,11 @@ def distance(coord1=None, coord2=None):
     return math.sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
 
 
+def point_is_in_rectangle(coord=None, x=0, y=0, width=0, height=0):
+    """ Calculates if a given point @ref coord is in a given rectangle shaped area """
+    return (x <= coord[0] <= (x + width)) and (y <= coord[1] <= (y + height))
+
+
 def setup_windows():
     """ Initialize global variables cam and w_screen for the capture device and the white screen """
     global cam
@@ -129,14 +149,80 @@ def setup_windows():
     global cam_width
     global cam_height
 
+    # Setup main window
     cv.namedWindow(window_name, cv.WINDOW_GUI_NORMAL)
     cv.setWindowProperty(window_name, cv.WINDOW_FULLSCREEN, cv.WINDOW_FULLSCREEN)
     cv.moveWindow(window_name, whiteboard_offset_x, whiteboard_offset_y)
+    cv.setMouseCallback(window_name, check_mouse_event)
 
+    # Setup capture device and whiteboard screen
     w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
     cam = cv.VideoCapture(-1)
     cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
+
+    # Create buttons
+    create_button("Save")
+    create_button("Load")
+    create_button("Clear")
+
+
+def create_button(label="", size_x=125, size_y=50):
+    """ Create button with label and size """
+    global color_options
+    global layers
+    global first_append
+
+    # Set initial colors
+    btn = np.full((size_y, size_x, NUMBER_OF_COLOR_CHANNELS), color_options[0][1], np.uint8)
+    btn[2:size_y - 2, 2:size_x - 2] = GRAY
+
+    # Get boundary of text as well as x and y coordinates
+    label_size = cv.getTextSize(label, FONT, 1, 2)[0]
+    label_x = int((size_x - label_size[0]) / 2)
+    label_y = int((size_y + label_size[1]) / 2)
+
+    cv.putText(btn, label, (label_x, label_y), FONT, 1, WHITE, 2, LINE_TYPE)
+
+    # Append buttons to layer array with additional x- and y-offset according to the main window
+    if first_append:
+        first_append = False
+        layers.append([btn, 100, size_y, label])
+    else:
+        layers.append([btn, 100, layers[-1][2] + (size_y * 2) if layers else (size_y * 2), label])
+
+
+def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
+    global mouse
+    global w_screen
+    global layers
+    global execute
+    global cleared
+
+    if event == cv.EVENT_MOUSEMOVE:
+        mouse[0] = mouse_x
+        mouse[1] = mouse_y
+        for lay in layers:
+            if point_is_in_rectangle(mouse, lay[1], lay[2] + SCALED_CAM[1], lay[0].shape[1], lay[0].shape[0]):
+                # Change appearance for highlighted layer
+                lay[0][2:lay[0].shape[0] - 2, 2:lay[0].shape[1] - 2] = DARK_GRAY
+                execute = lay[3]
+            else:
+                lay[0][2:lay[0].shape[0] - 2, 2:lay[0].shape[1] - 2] = GRAY
+
+            label_size = cv.getTextSize(lay[3], FONT, 1, 2)[0]
+            label_x = int((lay[0].shape[1] - label_size[0]) / 2)
+            label_y = int((lay[0].shape[0] + label_size[1]) / 2)
+
+            cv.putText(lay[0], lay[3], (label_x, label_y), FONT, 1, WHITE, 2, LINE_TYPE)
+
+    if event == cv.EVENT_LBUTTONDOWN:
+        if execute == "Save":
+            save_screen()
+        if execute == "Load":
+            load_image()
+        if execute == "Clear":
+            cleared = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
 
 
 def release_variables():
@@ -153,6 +239,17 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     global w_screen_cached
     global exit_program
     global window_name
+    global layers
+    global loaded
+    global cleared
+
+    if loaded is not None:
+        w_screen = copy.deepcopy(loaded)
+        loaded = None
+
+    if cleared is not None:
+        w_screen = copy.deepcopy(cleared)
+        cleared = None
 
     # Create a deep copy of the whiteboard screen
     w_screen_cached = copy.deepcopy(w_screen)
@@ -171,8 +268,12 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
 
     w_screen = cv.flip(w_screen, 1)
 
-    # Lay camera above whiteboard screen
-    w_screen[0:capture.shape[0], 0:capture.shape[1]] = capture
+    # Lay camera and buttons above whiteboard screen
+    cap_off_y = capture.shape[0]
+    cap_off_x = capture.shape[1]
+    w_screen[0:cap_off_y, 0:cap_off_x] = capture
+    for lay in layers:
+        w_screen[cap_off_y + lay[2]:cap_off_y + lay[2] + lay[0].shape[0], lay[1]:lay[1] + lay[0].shape[1]] = lay[0]
 
     cv.imshow(window_name, w_screen)
 
@@ -186,8 +287,6 @@ def check_user_gesture(landmarks=None):
     draw_flag = False
     select_flag = False
     erase_flag = False
-    save_flag = False
-    clear_flag = False
     color_flag = False
 
     # Split x and y coordinates into two separate arrays
@@ -263,27 +362,6 @@ def check_user_gesture(landmarks=None):
     if distance(lm[4], lm[8]) < ERASE_TOLERANCE:
         erase_flag = True
 
-    # Gesture: SAVE
-    for e in lmy[:2] + lmy[5:]:
-        if e > lmy[2] and lmx[5] > lmx[2] and lmx[9] > lmx[2] and lmx[13] > lmx[2] and lmx[17] > lmx[2]:
-            save_flag = True
-        else:
-            save_flag = False
-            break
-
-    # Gesture: CLEAR
-    for e in lmy[:2] + lmy[5:]:
-        if e < lmy[2] and lmx[5] > lmx[2] and lmx[9] > lmx[2] and lmx[13] > lmx[2] and lmx[17] > lmx[2]:
-            clear_flag = True
-        else:
-            clear_flag = False
-            break
-
-    # Gesture: SAVE/CLEAR - Fingers must be closed for saving or clearing the screen
-    if lmx[8] > lmx[5] or lmx[12] > lmx[9] or lmx[16] > lmx[13] or lmx[20] > lmx[17]:
-        save_flag = False
-        clear_flag = False
-
     # Gesture SELECT COLOR
     for e in lmy[:12] + lmy[13:]:
         if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOLERANCE and lmy[1] < lmy[0]:
@@ -298,10 +376,6 @@ def check_user_gesture(landmarks=None):
         return "select"
     if erase_flag:
         return "erase"
-    if save_flag:
-        return "save"
-    if clear_flag:
-        return "clear"
     if color_flag:
         # Gesture: SWITCH COLOR
         if lmx[4] < lmx[6]:
@@ -358,7 +432,10 @@ def switch_color():
 
 
 def save_screen():
-    global w_screen
+    global w_screen_cached
+    global execute
+
+    execute = ""
 
     # Create the sub folder, if it does not exist
     sub_folder = "/Saves"
@@ -373,13 +450,19 @@ def save_screen():
     filename = fd.asksaveasfilename(defaultextension="", initialdir=path, filetypes=[("Images", ".jpg")])
 
     if filename:
-        cv.imwrite(filename, cv.flip(w_screen, 1))
+        cv.imwrite(filename, cv.flip(w_screen_cached, 1))
 
 
-def quicksave_screen():
-    """ Save the current whiteboard screen into a subdirectory """
-    global w_screen
-    global first_save
+def load_image():
+    """ Load an image from the "Saves" subdirectory """
+    global whiteboard_width
+    global whiteboard_height
+    global execute
+    global loaded
+
+    loaded_height = 0
+    loaded_width = 0
+    execute = ""
 
     # Create the sub folder, if it does not exist
     sub_folder = "/Saves"
@@ -390,24 +473,18 @@ def quicksave_screen():
     except FileExistsError:
         pass
 
-    # Get current date
-    current_date = dt.datetime.now()
-    date_str = SEPARATOR.join(("", str(current_date.year), str(current_date.month), str(current_date.day),
-                               str(current_date.hour), str(current_date.minute), str(current_date.second)))
-
-    if first_save:
-        # Save w_screen
-        filename = "savedImage" + date_str + FILE_FORMAT
-        cv.imwrite(os.path.join(path, filename), cv.flip(w_screen, 1))
-        first_save = False
-
-
-def load_image():
-    global w_screen
-
     tkinter.Tk().withdraw()
-    filename = fd.askopenfilename()
-    w_screen = cv.flip(cv.imread(filename), 1)
+    filename = fd.askopenfilename(initialdir=path)
+    try:
+        loaded = cv.flip(cv.imread(filename), 1)
+    except TypeError:
+        pass
+
+    # Check if loaded image has the same resolution as whiteboard, if not resize the loaded image
+    if loaded is not None:
+        loaded_height, loaded_width, _ = loaded.shape
+        if loaded_height != whiteboard_height or loaded_width != whiteboard_width:
+            loaded = cv.resize(loaded, (whiteboard_width, whiteboard_height), interpolation=cv.INTER_AREA)
 
 
 def clear_screen():
@@ -423,7 +500,6 @@ def run():
     Also manage settings for different user webcam input.
     """
     global cam
-    global w_screen
     global mp_drawing
     global mp_drawing_styles
     global mp_hands
@@ -433,6 +509,9 @@ def run():
     global color_label
     global first_color_change
     global scale
+    global execute
+
+    execute = ""
 
     with mp_hands.Hands(
             max_num_hands=1,
@@ -487,14 +566,6 @@ def run():
                     draw(scaled_index_tip, WHITE, 20)
                 else:
                     first_draw = True
-
-                if gesture == "save":
-                    quicksave_screen()
-                else:
-                    first_save = True
-
-                if gesture == "clear":
-                    clear_screen()
 
             show_window(frame, scaled_index_tip, gesture, color_label)
             reverse_custom_layers()
