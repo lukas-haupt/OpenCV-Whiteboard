@@ -57,9 +57,9 @@ LINE_TYPE = cv.LINE_AA
 
 # Calculations
 HAND_INDICES = 21
-SELECT_TOLERANCE = 40
-ERASE_TOLERANCE = 20
-COLOR_TOLERANCE = 25
+SELECT_TOL = 40
+ERASE_TOL = 20
+COLOR_TOL = 25
 
 # Button execution
 loaded = None
@@ -91,6 +91,11 @@ first_save = True
 first_color_change = True
 latest_index_tip_position = []
 first_append = True
+first_zoom = True
+first_in_zoom = True
+zoom_initial_distance = 0
+zoom_percent = 100
+in_zoom = False
 
 # Scale factor for index fingertip position
 scale = [0, 0]
@@ -240,6 +245,7 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     global layers
     global loaded
     global cleared
+    global zoom_percent
 
     if loaded is not None:
         w_screen = copy.deepcopy(loaded)
@@ -259,6 +265,8 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
+    capture = cv.putText(capture, "Zoom: " + str(zoom_percent), (20, 260), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
+    capture = cv.putText(capture, "Zoom: " + str(zoom_percent), (20, 260), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
     capture = cv.resize(capture, SCALED_CAM, 0, 0, interpolation=cv.INTER_CUBIC)
 
     if index_coord is not None:
@@ -281,11 +289,12 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
 
 
 def check_user_gesture(landmarks=None):
-    """ Check the image for a hand gesture and distinguish between them """
+    """ Check the image for a hand gesture """
     draw_flag = False
     select_flag = False
     erase_flag = False
     color_flag = False
+    zoom_flag = False
 
     # Split x and y coordinates into two separate arrays
     lm = np.array(landmarks)
@@ -342,31 +351,43 @@ def check_user_gesture(landmarks=None):
         lmx.append(math.cos(ang)*x - math.sin(ang)*y)
         lmy.append(math.sin(ang)*x + math.cos(ang)*y)
 
-    # Gesture: DRAW
-    for e in lmy[:6] + lmy[9:]:
-        if e > lmy[6]:
-            draw_flag = True
-        else:
-            draw_flag = False
-            break
+    # Check if one hand or two hands are calculated
+    if len(lm) == HAND_INDICES:
+        # Gesture: DRAW
+        for e in lmy[:6] + lmy[9:HAND_INDICES]:
+            if e > lmy[6]:
+                draw_flag = True
+            else:
+                draw_flag = False
+                break
 
-    # Gesture: SELECT
-    if draw_flag:
-        if distance(lm[4], lm[6]) > SELECT_TOLERANCE:
-            draw_flag = False
-            select_flag = True
+        # Gesture: SELECT
+        if draw_flag:
+            if distance(lm[4], lm[6]) > SELECT_TOL:
+                draw_flag = False
+                select_flag = True
 
-    # Gesture: ERASE
-    if distance(lm[4], lm[8]) < ERASE_TOLERANCE:
-        erase_flag = True
+        # Gesture: ERASE
+        if distance(lm[4], lm[8]) < ERASE_TOL:
+            erase_flag = True
 
-    # Gesture SELECT COLOR
-    for e in lmy[:12] + lmy[13:]:
-        if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOLERANCE and lmy[1] < lmy[0]:
-            color_flag = True
-        else:
-            color_flag = False
-            break
+        # Gesture SELECT COLOR
+        for e in lmy[:12] + lmy[13:HAND_INDICES]:
+            if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOL and lmy[1] < lmy[0]:
+                color_flag = True
+            else:
+                color_flag = False
+                break
+
+    else:
+        # Gesture: ZOOM
+        if distance(lm[25], lm[37]) > SELECT_TOL:
+            for e, f in zip(lmy[:6] + lmy[9:HAND_INDICES], lmy[HAND_INDICES:HAND_INDICES+6] + lmy[HAND_INDICES+9:]):
+                if e > lmy[6] and f > lmy[HAND_INDICES+6]:
+                    zoom_flag = True
+                else:
+                    zoom_flag = False
+                    break
 
     if draw_flag:
         return "draw"
@@ -379,7 +400,19 @@ def check_user_gesture(landmarks=None):
         if lmx[4] < lmx[6]:
             return "switch color"
         return "select color"
-    return "unknown"
+    if zoom_flag:
+        return "zoom"
+    return ""
+
+
+def determine_right_left(landmarks=None):
+    """ Rearrange the order of the hand landmarks to be right hand side first """
+    if len(landmarks) == HAND_INDICES * 2:
+        if landmarks[5][0] < landmarks[17][0]:
+            landmarks_left = landmarks[:HAND_INDICES]
+            landmarks_right = landmarks[HAND_INDICES:]
+            return landmarks_right + landmarks_left
+    return landmarks
 
 
 def reverse_custom_layers():
@@ -429,6 +462,39 @@ def switch_color():
     color_label = color_options[color_key][0]
 
 
+def calculate_zoom_factor(lm=None):
+    """ Perform a zoom on the whiteboard screen """
+    global w_screen
+    global first_zoom
+    global first_in_zoom
+    global zoom_initial_distance
+    global zoom_percent
+    global in_zoom
+
+    # Calculate the distance between the two index fingertips
+    index_distance = distance(lm[8], lm[HAND_INDICES + 8])
+
+    if not in_zoom:
+        if first_zoom:
+            first_zoom = False
+            zoom_initial_distance = int(index_distance)
+    else:
+        if first_in_zoom:
+            first_in_zoom = False
+            zoom_initial_distance = int(zoom_percent * index_distance / 100)
+
+    zoom_percent = int(zoom_initial_distance * 100 / index_distance)
+    print(zoom_percent)
+
+    # Cap the zoom scale to 100 percent at maximum
+    if zoom_percent >= 100:
+        zoom_percent = 100
+        in_zoom = False
+
+    if zoom_percent == 0:
+        zoom_percent = 1
+
+
 def save_screen():
     global w_screen_cached
     global execute
@@ -472,8 +538,6 @@ def load_image():
     global execute
     global loaded
 
-    loaded_height = 0
-    loaded_width = 0
     execute = ""
 
     # Create the sub folder, if it does not exist
@@ -522,11 +586,15 @@ def run():
     global first_color_change
     global scale
     global execute
+    global first_zoom
+    global first_in_zoom
+    global zoom_percent
+    global in_zoom
 
     execute = ""
 
     with mp_hands.Hands(
-            max_num_hands=1,
+            max_num_hands=2,
             model_complexity=0,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
@@ -541,7 +609,7 @@ def run():
 
             frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
             results = hands.process(frame)
-            gesture = "unknown"
+            gesture = ""
             scaled_index_tip = None
 
             if results.multi_hand_landmarks:
@@ -562,6 +630,7 @@ def run():
                         mp_drawing_styles.get_default_hand_connections_style()
                     )
 
+                landmarks = determine_right_left(landmarks)
                 index_tip = landmarks[8]
 
                 # Scale index fingertip position according to the scaling factor
@@ -580,6 +649,15 @@ def run():
                     draw(scaled_index_tip, WHITE, 20)
                 else:
                     first_draw = True
+
+                if gesture == "zoom":
+                    if len(landmarks) == 42:
+                        calculate_zoom_factor(landmarks)
+                else:
+                    first_zoom = True
+                    first_in_zoom = True
+                    if zoom_percent != 100:
+                        in_zoom = True
 
             show_window(frame, scaled_index_tip, gesture, color_label)
             reverse_custom_layers()
