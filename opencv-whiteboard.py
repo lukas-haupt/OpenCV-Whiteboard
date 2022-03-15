@@ -16,6 +16,7 @@ import screeninfo as si
 import cv2 as cv
 import mediapipe as mp
 import numpy as np
+import sys
 
 __author__ = "Lukas Haupt, Stefan Weisbeck"
 __credits__ = ["Lukas Haupt", "Stefan Weisbeck"]
@@ -31,8 +32,6 @@ __status__ = "Development"
 # Whiteboard variables
 whiteboard_width = 0
 whiteboard_height = 0
-whiteboard_offset_x = 0
-whiteboard_offset_y = 0
 NUMBER_OF_COLOR_CHANNELS = 3
 window_name = "OpenCV-Whiteboard"
 
@@ -112,16 +111,12 @@ def get_screen_resolution():
     """
     global whiteboard_width
     global whiteboard_height
-    global whiteboard_offset_x
-    global whiteboard_offset_y
     global scale
 
     for m in si.get_monitors():
         if m.is_primary:
             whiteboard_width = m.width
             whiteboard_height = m.height
-            whiteboard_offset_x = m.x
-            whiteboard_offset_y = m.y
 
     scale[0] = whiteboard_width / cam_width
     scale[1] = whiteboard_height / cam_height
@@ -142,15 +137,12 @@ def setup_windows():
     global cam
     global w_screen
     global window_name
-    global whiteboard_offset_x
-    global whiteboard_offset_y
     global cam_width
     global cam_height
 
     # Setup main window
-    cv.namedWindow(window_name, cv.WINDOW_GUI_NORMAL)
-    cv.setWindowProperty(window_name, cv.WINDOW_FULLSCREEN, cv.WINDOW_FULLSCREEN)
-    cv.moveWindow(window_name, whiteboard_offset_x, whiteboard_offset_y)
+    cv.namedWindow(window_name, cv.WND_PROP_FULLSCREEN)
+    cv.setWindowProperty(window_name, cv.WND_PROP_FULLSCREEN, cv.WINDOW_FULLSCREEN)
     cv.setMouseCallback(window_name, check_mouse_event)
 
     # Setup capture device and whiteboard screen
@@ -163,6 +155,7 @@ def setup_windows():
     create_button("Save")
     create_button("Load")
     create_button("Clear")
+    create_button("Exit")
 
 
 def create_button(label="", size_x=125, size_y=50):
@@ -193,6 +186,7 @@ def create_button(label="", size_x=125, size_y=50):
 def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
     global mouse
     global w_screen
+    global window_name
     global layers
     global execute
     global cleared
@@ -221,6 +215,10 @@ def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
             load_image()
         if execute == "Clear":
             cleared = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+        # TODO
+        if execute == "Exit":
+            cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1
+
 
 
 def release_variables():
@@ -276,7 +274,7 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     cv.imshow(window_name, w_screen)
 
     # Check if window has been closed by "q" or by default window close
-    if cv.waitKey(1) == ord("q") or cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1:
+    if cv.waitKey(1) == ord("q"):
         exit_program = 1
 
 
