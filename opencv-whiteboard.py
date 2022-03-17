@@ -176,7 +176,7 @@ def setup_windows():
 
     # Setup capture device and whiteboard screen
     w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
-    cam = cv.VideoCapture(-1)
+    cam = cv.VideoCapture(1)
     cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
