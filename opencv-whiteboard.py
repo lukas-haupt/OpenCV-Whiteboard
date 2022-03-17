@@ -98,7 +98,8 @@ first_in_zoom = True
 zoom_initial_distance = 0
 zoom_factor = 100
 in_zoom = False
-z_point = None
+off_width = 0
+off_height = 0
 
 # Scale factor for index fingertip position
 scale = [0, 0]
@@ -451,16 +452,8 @@ def draw(coord=None, col=color, thickness=2):
         w_screen = cv.line(w_screen, draw_start, draw_end, col, thickness=thickness, lineType=LINE_TYPE)
         draw_start = draw_end
 
-        # if zoom_factor == 100:
-        #     w_screen_before_zoomed = copy.deepcopy(w_screen)
-        # else:
-        #     # Calculate zoomed screen dimension
-        #     factor = zoom_factor / 100
-        #     z_width = int(whiteboard_width * factor)
-        #     z_height = int(whiteboard_height * factor)
-        #     w_screen_tmp = cv.resize(w_screen, (z_width, z_height))
-        #     w_screen_before_zoomed[:z_height, :z_width] = copy.deepcopy(w_screen_tmp)
-        #     w_screen = copy.deepcopy(w_screen_before_zoomed)
+        if zoom_factor == 100:
+            w_screen_before_zoomed = copy.deepcopy(w_screen)
 
 
 def switch_color():
@@ -490,10 +483,11 @@ def zoom(lm=None):
     global zoom_initial_distance
     global zoom_factor
     global in_zoom
-    global z_point
     global whiteboard_width
     global whiteboard_height
     global scale
+    global off_width
+    global off_height
 
     # Calculate the distance between the two index fingertips
     i1 = [round(a * b) for a, b in zip(lm[8], scale)]
@@ -632,7 +626,8 @@ def run():
     global in_zoom
     global w_screen
     global w_screen_before_zoomed
-    global z_point
+    global off_width
+    global off_height
 
     execute = ""
 
@@ -694,14 +689,37 @@ def run():
                     first_draw = True
 
                 if gesture == "zoom":
+                    if in_zoom:
+                        # Check if the user has edited the displayed whiteboard screen
+                        w_shown = cv.resize(
+                            w_screen,
+                            (whiteboard_width - off_width*2, whiteboard_height - off_height*2)
+                        )
+                        w_saved = w_screen_before_zoomed[
+                                    off_height:whiteboard_height - off_height,
+                                    off_width:whiteboard_width - off_width
+                                  ]
+
+                        if not np.array_equal(w_shown, w_saved):
+                            w_screen_tmp = copy.deepcopy(
+                                cv.resize(
+                                    w_screen,
+                                    (whiteboard_width - int(off_width * 2), whiteboard_height - int(off_height * 2))
+                                )
+                            )
+                            w_screen_before_zoomed[
+                                off_height:whiteboard_height - off_height,
+                                off_width:whiteboard_width - off_width
+                            ] = copy.deepcopy(w_screen_tmp)
+                    else:
+                        pass
+
                     zoom(landmarks)
                 else:
                     first_zoom = True
                     first_in_zoom = True
                     if zoom_factor != 100:
                         in_zoom = True
-                    else:
-                        z_point = None
 
             show_window(frame, scaled_index_tip, gesture, color_label)
             restore_screen()
