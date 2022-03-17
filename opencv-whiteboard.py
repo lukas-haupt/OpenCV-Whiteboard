@@ -173,7 +173,7 @@ def setup_windows():
 
     # Setup capture device and whiteboard screen
     w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
-    cam = cv.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
+    cam = cv.VideoCapture(gstreamer_pipeline(flip_method=0), cv.CAP_GSTREAMER)
     cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
