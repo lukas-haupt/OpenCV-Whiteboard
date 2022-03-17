@@ -215,10 +215,8 @@ def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
             load_image()
         if execute == "Clear":
             cleared = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
-        # TODO
         if execute == "Exit":
-            cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1
-
+            release_variables()
 
 
 def release_variables():
@@ -470,8 +468,6 @@ def load_image():
     global execute
     global loaded
 
-    loaded_height = 0
-    loaded_width = 0
     execute = ""
 
     # Create the sub folder, if it does not exist
