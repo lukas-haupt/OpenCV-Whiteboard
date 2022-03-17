@@ -308,13 +308,6 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
 def calc_hand_rotation_angle(lmx_n,lmy_n,offset):
     off = 21 * offset
 
-    # Split x and y coordinates into two separate arrays
-    lm = np.array(landmarks)
-    lmx_n, lmy_n = zip(*lm)
-
-    lmx = []
-    lmy = []
-
     # Calculate angle
     ang = math.acos(abs(lmy_n[5+off]-lmy_n[0+off])/abs(math.sqrt((lmy_n[5+off]-lmy_n[0+off])**2+(lmx_n[5+off]-lmx_n[0+off])**2)))
 
@@ -358,6 +351,7 @@ def calc_hand_rotation_angle(lmx_n,lmy_n,offset):
 
     return ang
 
+
 def check_user_gesture(landmarks=None):
     """ Check the image for a hand gesture and distinguish between them """
     draw_flag = False
@@ -382,8 +376,8 @@ def check_user_gesture(landmarks=None):
         lmy.append(math.sin(ang0)*x + math.cos(ang0)*y)
 
     if len(lmx_n) > 21:
-        ang1 = calc_hand_rotation_angle(lmx_n,lmx_y,1)
-        for i in range(21,42):
+        ang1 = calc_hand_rotation_angle(lmx_n, lmy_n, 1)
+        for i in range(21, 42):
             x = lmx_n[i]
             y = lmy_n[i]
             lmx.append(math.cos(ang1)*x - math.sin(ang1)*y)
