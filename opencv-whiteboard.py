@@ -304,9 +304,62 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     if cv.waitKey(1) == ord("q"):
         exit_program = 1
 
+        
+def calc_hand_rotation_angle(lmx_n,lmy_n,offset):
+    off = 21 * offset
+
+    # Split x and y coordinates into two separate arrays
+    lm = np.array(landmarks)
+    lmx_n, lmy_n = zip(*lm)
+
+    lmx = []
+    lmy = []
+
+    # Calculate angle
+    ang = math.acos(abs(lmy_n[5+off]-lmy_n[0+off])/abs(math.sqrt((lmy_n[5+off]-lmy_n[0+off])**2+(lmx_n[5+off]-lmx_n[0+off])**2)))
+
+    # Rotation over 90°
+    if lmy_n[0+off] < lmy_n[5+off]:
+        ang = math.pi/2 + (math.pi/2-ang)
+
+    # Rotation anticlockwise
+    if lmx_n[0+off] < lmx_n[5+off]:
+        ang *= -1
+
+    # Offset for left or right hand
+
+    # Up
+    if abs(ang) <= .25 * math.pi:
+        if lmx_n[5+off] > lmx_n[17+off]:
+            ang += .5
+        else:
+            ang -= .5
+
+    # Right
+    elif .25 * math.pi < ang < .75 * math.pi:
+        if lmy_n[5+off] < lmy_n[17+off]:
+            ang += .5
+        else:
+            ang -= .5
+
+    # Down
+    elif abs(ang) >= .75 * math.pi:
+        if lmx_n[5+off] < lmx_n[17+off]:
+            ang += .5
+        else:
+            ang -= .5
+
+    # Left
+    elif -.25 * math.pi > ang > -.75 * math.pi:
+        if lmy_n[5+off] > lmy_n[17+off]:
+            ang += .5
+        else:
+            ang -= .5
+
+    return ang
 
 def check_user_gesture(landmarks=None):
-    """ Check the image for a hand gesture """
+    """ Check the image for a hand gesture and distinguish between them """
     draw_flag = False
     select_flag = False
     erase_flag = False
@@ -320,53 +373,21 @@ def check_user_gesture(landmarks=None):
     lmx = []
     lmy = []
 
-    # Calculate angle
-    ang = math.acos(abs(lmy_n[5]-lmy_n[0])/abs(math.sqrt((lmy_n[5]-lmy_n[0])**2+(lmx_n[5]-lmx_n[0])**2)))
-
-    # Rotation over 90°
-    if lmy_n[0] < lmy_n[5]:
-        ang = math.pi/2 + (math.pi/2-ang)
-
-    # Rotation anticlockwise
-    if lmx_n[0] < lmx_n[5]:
-        ang *= -1
-
-    # Offset for left or right hand
-
-    # Up
-    if abs(ang) <= .25 * math.pi:
-        if lmx_n[5] > lmx_n[17]:
-            ang += .5
-        else:
-            ang -= .5
-
-    # Right
-    elif .25 * math.pi < ang < .75 * math.pi:
-        if lmy_n[5] < lmy_n[17]:
-            ang += .5
-        else:
-            ang -= .5
-
-    # Down
-    elif abs(ang) >= .75 * math.pi:
-        if lmx_n[5] < lmx_n[17]:
-            ang += .5
-        else:
-            ang -= .5
-
-    # Left
-    elif -.25 * math.pi > ang > -.75 * math.pi:
-        if lmy_n[5] > lmy_n[17]:
-            ang += .5
-        else:
-            ang -= .5
-
     # Rotation
-    for i in range(len(lmx_n)):
+    ang0 = calc_hand_rotation_angle(lmx_n, lmy_n, 0)
+    for i in range(21):
         x = lmx_n[i]
         y = lmy_n[i]
-        lmx.append(math.cos(ang)*x - math.sin(ang)*y)
-        lmy.append(math.sin(ang)*x + math.cos(ang)*y)
+        lmx.append(math.cos(ang0)*x - math.sin(ang0)*y)
+        lmy.append(math.sin(ang0)*x + math.cos(ang0)*y)
+
+    if len(lmx_n) > 21:
+        ang1 = calc_hand_rotation_angle(lmx_n,lmx_y,1)
+        for i in range(21,42):
+            x = lmx_n[i]
+            y = lmy_n[i]
+            lmx.append(math.cos(ang1)*x - math.sin(ang1)*y)
+            lmy.append(math.sin(ang1)*x + math.cos(ang1)*y)
 
     # Gesture: DRAW
     for e in lmy[:6] + lmy[9:HAND_INDICES]:
