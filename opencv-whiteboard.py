@@ -104,32 +104,32 @@ mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands
 
 
-def gstreamer_pipeline(
-    capture_width=1280,
-    capture_height=720,
-    display_width=1280,
-    display_height=720,
-    framerate=60,
-    flip_method=0,
-):
-    return (
-        "nvarguscamerasrc ! "
-        "video/x-raw(memory:NVMM), "
-        "width=(int)%d, height=(int)%d, "
-        "format=(string)NV12, framerate=(fraction)%d/1 ! "
-        "nvvidconv flip-method=%d ! "
-        "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
-        "videoconvert ! "
-        "video/x-raw, format=(string)BGR ! appsink"
-        % (
-            capture_width,
-            capture_height,
-            framerate,
-            flip_method,
-            display_width,
-            display_height,
-        )
-    )
+#def gstreamer_pipeline(
+    #capture_width=1280,
+    #capture_height=720,
+    #display_width=1280,
+    #display_height=720,
+    #framerate=60,
+    #flip_method=0,
+#):
+    #return (
+        #"nvarguscamerasrc ! "
+        #"video/x-raw(memory:NVMM), "
+        #"width=(int)%d, height=(int)%d, "
+        #"format=(string)NV12, framerate=(fraction)%d/1 ! "
+        #"nvvidconv flip-method=%d ! "
+        #"video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
+        #"videoconvert ! "
+        #"video/x-raw, format=(string)BGR ! appsink"
+        #% (
+            #capture_width,
+            #capture_height,
+            #framerate,
+            #flip_method,
+            #display_width,
+            #display_height,
+        #)
+    #)
 
 
 def get_screen_resolution():
@@ -176,7 +176,7 @@ def setup_windows():
 
     # Setup capture device and whiteboard screen
     w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
-    cam = cv.VideoCapture(gstreamer_pipeline(flip_method=0), cv.CAP_GSTREAMER)
+    cam = cv.VideoCapture(-1)
     cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
