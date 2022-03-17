@@ -58,8 +58,9 @@ LINE_TYPE = cv.LINE_AA
 # Calculations
 HAND_INDICES = 21
 SELECT_TOL = 40
-ERASE_TOL = 20
+ERASE_TOL = 40
 COLOR_TOL = 25
+BUG_TOL = 50
 
 # Button execution
 loaded = None
@@ -266,11 +267,13 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
         w_screen = copy.deepcopy(loaded)
         w_screen_before_zoomed = copy.deepcopy(w_screen)
         loaded = None
+        zoom_factor = 100
 
     if cleared is not None:
         w_screen = copy.deepcopy(cleared)
         w_screen_before_zoomed = copy.deepcopy(w_screen)
         cleared = None
+        zoom_factor = 100
 
     # Create a deep copy of the whiteboard screen
     w_screen_cached = copy.deepcopy(w_screen)
@@ -305,7 +308,7 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
         exit_program = 1
 
         
-def calc_hand_rotation_angle(lmx_n,lmy_n,offset):
+def calc_hand_rotation_angle(lmx_n, lmy_n, offset):
     off = 21 * offset
 
     # Calculate angle
@@ -383,55 +386,57 @@ def check_user_gesture(landmarks=None):
             lmx.append(math.cos(ang1)*x - math.sin(ang1)*y)
             lmy.append(math.sin(ang1)*x + math.cos(ang1)*y)
 
-    # Gesture: DRAW
-    for e in lmy[:6] + lmy[9:HAND_INDICES]:
-        if e > lmy[6]:
-            draw_flag = True
-        else:
-            draw_flag = False
-            break
+    if len(lm) != 42:
+        # Gesture: DRAW
+        for e in lmy[:6] + lmy[9:HAND_INDICES]:
+            if e > lmy[6]:
+                draw_flag = True
+            else:
+                draw_flag = False
+                break
 
-    # Gesture: SELECT
-    if draw_flag:
-        if distance(lm[4], lm[6]) > SELECT_TOL:
-            draw_flag = False
-            select_flag = True
+        # Gesture: SELECT
+        if draw_flag:
+            if distance(lm[4], lm[6]) > SELECT_TOL:
+                draw_flag = False
+                select_flag = True
 
-    # Gesture: ERASE
-    if distance(lm[4], lm[8]) < ERASE_TOL:
-        erase_flag = True
+        # Gesture SELECT COLOR
+        for e in lmy[:12] + lmy[13:HAND_INDICES]:
+            if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOL:
+                color_flag = True
+            else:
+                color_flag = False
+                break
 
-    # Gesture SELECT COLOR
-    for e in lmy[:12] + lmy[13:HAND_INDICES]:
-        if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOL and lmy[1] < lmy[0]:
-            color_flag = True
-        else:
-            color_flag = False
-            break
+        # Gesture: ERASE
+        if color_flag and distance(lm[4], lm[5]) < ERASE_TOL:
+            erase_flag = True
 
-    if len(lm) > 21:
+    else:
         # Gesture: ZOOM
-        if distance(lm[25], lm[37]) > SELECT_TOL:
-            for e, f in zip(lmy[:6] + lmy[9:HAND_INDICES], lmy[HAND_INDICES:HAND_INDICES+6] + lmy[HAND_INDICES+9:]):
-                if e > lmy[6] and f > lmy[HAND_INDICES+6]:
-                    zoom_flag = True
-                else:
-                    zoom_flag = False
-                    break
+        if distance(lm[0], lm[HAND_INDICES]) > BUG_TOL:
+            if distance(lm[4], lm[8]) > 50 and distance(lm[HAND_INDICES+4], lm[HAND_INDICES+8]) > 50:
+                for e, f in zip(lmy[:6] + lmy[9:HAND_INDICES], lmy[HAND_INDICES:HAND_INDICES+6] + lmy[HAND_INDICES+9:]):
+                    if e > lmy[6] and f > lmy[HAND_INDICES+6]:
+                        zoom_flag = True
+                    else:
+                        zoom_flag = False
+                        break
 
     if draw_flag:
         return "draw"
+    if select_flag:
+        return "select"
     if erase_flag:
         return "erase"
     if color_flag:
         # Gesture: SWITCH COLOR
-        if lmx[4] < lmx[6]:
+        if lmy[16] < lmy[14] and lmy[20] < lmy[18]:
             return "switch color"
         return "select color"
     if zoom_flag:
         return "zoom"
-    if select_flag:
-        return "select"
     return "unknown"
 
 
@@ -625,7 +630,9 @@ def load_image():
 def clear_screen():
     """ Get a new blank whiteboard screen """
     global w_screen
+    global w_screen_before_zoomed
     w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+    w_screen_before_zoomed = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
 
 
 def run():
