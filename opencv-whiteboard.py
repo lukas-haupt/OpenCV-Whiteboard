@@ -101,6 +101,20 @@ in_zoom = False
 off_width = 0
 off_height = 0
 
+# Sharpen the image
+kernel_filter = True
+kernel_s = np.array([
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0]
+])
+
+kernel_gb = np.array([
+    [1/9, 1/9, 1/9],
+    [1/9, 1/9, 1/9],
+    [1/9, 1/9, 1/9]
+])
+
 # Scale factor for index fingertip position
 scale = [0, 0]
 
@@ -628,6 +642,7 @@ def run():
     global w_screen_before_zoomed
     global off_width
     global off_height
+    global kernel_filter
 
     execute = ""
 
@@ -711,6 +726,20 @@ def run():
                                 off_height:whiteboard_height - off_height,
                                 off_width:whiteboard_width - off_width
                             ] = copy.deepcopy(w_screen_tmp)
+
+                            if kernel_filter:
+                                kernel_filter = False
+
+                                # Sharpen the image
+                                w_screen_before_zoomed = copy.deepcopy(
+                                    cv.filter2D(src=w_screen_before_zoomed, ddepth=-1, kernel=kernel_s)
+                                )
+
+                                # Smoothen image
+                                # # Gaussian blur the image
+                                # w_screen_before_zoomed = copy.deepcopy(
+                                #     cv.filter2D(src=w_screen_before_zoomed, ddepth=-1, kernel=kernel_gb)
+                                # )
                     else:
                         pass
 
@@ -720,6 +749,8 @@ def run():
                     first_in_zoom = True
                     if zoom_factor != 100:
                         in_zoom = True
+                    else:
+                        kernel_filter = True
 
             show_window(frame, scaled_index_tip, gesture, color_label)
             restore_screen()
