@@ -100,7 +100,7 @@ layers = []
 
 # Mediapipe variables for drawing hand tracking coordinates
 mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+# mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
 
@@ -152,10 +152,10 @@ def setup_windows():
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
     # Create buttons
-    create_button("Save")
-    create_button("Load")
-    create_button("Clear")
-    create_button("Exit")
+#    create_button("Save")
+#    create_button("Load")
+#    create_button("Clear")
+#    create_button("Exit")
 
 
 def create_button(label="", size_x=125, size_y=50):
@@ -525,7 +525,7 @@ def run():
 
     with mp_hands.Hands(
             max_num_hands=1,
-            model_complexity=0,
+            # model_complexity=0,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
     ) as hands:
@@ -556,8 +556,8 @@ def run():
                         frame,
                         hand_landmarks,
                         mp_hands.HAND_CONNECTIONS,
-                        mp_drawing_styles.get_default_hand_landmarks_style(),
-                        mp_drawing_styles.get_default_hand_connections_style()
+#                         mp_drawing_styles.get_default_hand_landmarks_style(),
+#                         mp_drawing_styles.get_default_hand_connections_style()
                     )
 
                 index_tip = landmarks[8]
