@@ -10,6 +10,7 @@ due to applicable hand gesture recognition, as well as other useful extensions.
 import copy
 import math
 import os
+import sys
 import tkinter
 from tkinter import filedialog as fd
 import screeninfo as si
@@ -56,9 +57,9 @@ LINE_TYPE = cv.LINE_AA
 
 # Calculations
 HAND_INDICES = 21
-SELECT_TOLERANCE = 40
-ERASE_TOLERANCE = 20
-COLOR_TOLERANCE = 25
+SELECT_TOL = 40
+ERASE_TOL = 20
+COLOR_TOL = 25
 
 # Button execution
 loaded = None
@@ -79,6 +80,7 @@ SCALED_CAM = (480, 360)
 
 w_screen = None
 w_screen_cached = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+w_screen_before_zoomed = None
 
 exit_program = 0
 
@@ -90,6 +92,27 @@ first_save = True
 first_color_change = True
 latest_index_tip_position = []
 first_append = True
+first_zoom = True
+first_in_zoom = True
+zoom_initial_distance = 0
+zoom_factor = 100
+in_zoom = False
+off_width = 0
+off_height = 0
+
+# Sharpen the image
+kernel_filter = True
+kernel_s = np.array([
+    [0, -1, 0],
+    [-1, 5, -1],
+    [0, -1, 0]
+])
+
+kernel_gb = np.array([
+    [1/9, 1/9, 1/9],
+    [1/9, 1/9, 1/9],
+    [1/9, 1/9, 1/9]
+])
 
 # Scale factor for index fingertip position
 scale = [0, 0]
@@ -146,7 +169,7 @@ def setup_windows():
     cv.setMouseCallback(window_name, check_mouse_event)
 
     # Setup capture device and whiteboard screen
-    w_screen = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
+    clear_screen()
     cam = cv.VideoCapture(-1)
     cam.set(cv.CAP_PROP_FRAME_WIDTH, cam_width)
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
@@ -215,10 +238,8 @@ def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
             load_image()
         if execute == "Clear":
             cleared = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
-        # TODO
         if execute == "Exit":
-            cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1
-
+            release_variables()
 
 
 def release_variables():
@@ -233,18 +254,22 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     """ Display image in a single window """
     global w_screen
     global w_screen_cached
+    global w_screen_before_zoomed
     global exit_program
     global window_name
     global layers
     global loaded
     global cleared
+    global zoom_factor
 
     if loaded is not None:
         w_screen = copy.deepcopy(loaded)
+        w_screen_before_zoomed = copy.deepcopy(w_screen)
         loaded = None
 
     if cleared is not None:
         w_screen = copy.deepcopy(cleared)
+        w_screen_before_zoomed = copy.deepcopy(w_screen)
         cleared = None
 
     # Create a deep copy of the whiteboard screen
@@ -257,6 +282,8 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     capture = cv.putText(capture, "Gesture: " + gesture, (20, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
     capture = cv.putText(capture, "Color: " + col, (300, 460), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
+    capture = cv.putText(capture, "Zoom: " + str(zoom_factor), (20, 260), FONT, 0.75, color_options[0][1], 2, LINE_TYPE)
+    capture = cv.putText(capture, "Zoom: " + str(zoom_factor), (20, 260), FONT, 0.75, color_options[2][1], 1, LINE_TYPE)
     capture = cv.resize(capture, SCALED_CAM, 0, 0, interpolation=cv.INTER_CUBIC)
 
     if index_coord is not None:
@@ -277,8 +304,16 @@ def show_window(capture=None, index_coord=None, gesture="", col=color_options[0]
     if cv.waitKey(1) == ord("q"):
         exit_program = 1
 
+        
 def calc_hand_rotation_angle(lmx_n,lmy_n,offset):
     off = 21 * offset
+
+    # Split x and y coordinates into two separate arrays
+    lm = np.array(landmarks)
+    lmx_n, lmy_n = zip(*lm)
+
+    lmx = []
+    lmy = []
 
     # Calculate angle
     ang = math.acos(abs(lmy_n[5+off]-lmy_n[0+off])/abs(math.sqrt((lmy_n[5+off]-lmy_n[0+off])**2+(lmx_n[5+off]-lmx_n[0+off])**2)))
@@ -329,6 +364,7 @@ def check_user_gesture(landmarks=None):
     select_flag = False
     erase_flag = False
     color_flag = False
+    zoom_flag = False
 
     # Split x and y coordinates into two separate arrays
     lm = np.array(landmarks)
@@ -354,7 +390,7 @@ def check_user_gesture(landmarks=None):
             lmy.append(math.sin(ang1)*x + math.cos(ang1)*y)
 
     # Gesture: DRAW
-    for e in lmy[:6] + lmy[9:]:
+    for e in lmy[:6] + lmy[9:HAND_INDICES]:
         if e > lmy[6]:
             draw_flag = True
         else:
@@ -363,26 +399,34 @@ def check_user_gesture(landmarks=None):
 
     # Gesture: SELECT
     if draw_flag:
-        if distance(lm[4], lm[6]) > SELECT_TOLERANCE:
+        if distance(lm[4], lm[6]) > SELECT_TOL:
             draw_flag = False
             select_flag = True
 
     # Gesture: ERASE
-    if distance(lm[4], lm[8]) < ERASE_TOLERANCE:
+    if distance(lm[4], lm[8]) < ERASE_TOL:
         erase_flag = True
 
     # Gesture SELECT COLOR
-    for e in lmy[:12] + lmy[13:]:
-        if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOLERANCE and lmy[1] < lmy[0]:
+    for e in lmy[:12] + lmy[13:HAND_INDICES]:
+        if e > lmy[12] and distance(lm[8], lm[12]) < COLOR_TOL and lmy[1] < lmy[0]:
             color_flag = True
         else:
             color_flag = False
             break
 
+    if len(lm) > 21:
+        # Gesture: ZOOM
+        if distance(lm[25], lm[37]) > SELECT_TOL:
+            for e, f in zip(lmy[:6] + lmy[9:HAND_INDICES], lmy[HAND_INDICES:HAND_INDICES+6] + lmy[HAND_INDICES+9:]):
+                if e > lmy[6] and f > lmy[HAND_INDICES+6]:
+                    zoom_flag = True
+                else:
+                    zoom_flag = False
+                    break
+
     if draw_flag:
         return "draw"
-    if select_flag:
-        return "select"
     if erase_flag:
         return "erase"
     if color_flag:
@@ -390,10 +434,24 @@ def check_user_gesture(landmarks=None):
         if lmx[4] < lmx[6]:
             return "switch color"
         return "select color"
+    if zoom_flag:
+        return "zoom"
+    if select_flag:
+        return "select"
     return "unknown"
 
 
-def reverse_custom_layers():
+def determine_right_left(landmarks=None):
+    """ Rearrange the order of the hand landmarks to be right hand side first """
+    if len(landmarks) == HAND_INDICES * 2:
+        if landmarks[5][0] < landmarks[17][0]:
+            landmarks_left = landmarks[:HAND_INDICES]
+            landmarks_right = landmarks[HAND_INDICES:]
+            return landmarks_right + landmarks_left
+    return landmarks
+
+
+def restore_screen():
     """ Reset the screen to the latest change before adding custom layers """
     global w_screen
     global w_screen_cached
@@ -408,9 +466,13 @@ def draw(coord=None, col=color, thickness=2):
     draw_end:   end point of the line
     """
     global w_screen
+    global w_screen_before_zoomed
     global first_draw
     global draw_start
     global draw_end
+    global zoom_factor
+    global whiteboard_width
+    global whiteboard_height
 
     if first_draw:
         first_draw = False
@@ -420,6 +482,9 @@ def draw(coord=None, col=color, thickness=2):
         draw_end = coord
         w_screen = cv.line(w_screen, draw_start, draw_end, col, thickness=thickness, lineType=LINE_TYPE)
         draw_start = draw_end
+
+        if zoom_factor == 100:
+            w_screen_before_zoomed = copy.deepcopy(w_screen)
 
 
 def switch_color():
@@ -438,6 +503,59 @@ def switch_color():
 
     color = color_options[color_key][1]
     color_label = color_options[color_key][0]
+
+
+def zoom(lm=None):
+    """ Perform a zoom on the whiteboard screen """
+    global w_screen
+    global w_screen_before_zoomed
+    global first_zoom
+    global first_in_zoom
+    global zoom_initial_distance
+    global zoom_factor
+    global in_zoom
+    global whiteboard_width
+    global whiteboard_height
+    global scale
+    global off_width
+    global off_height
+
+    # Calculate the distance between the two index fingertips
+    i1 = [round(a * b) for a, b in zip(lm[8], scale)]
+    i2 = [round(a * b) for a, b in zip(lm[HAND_INDICES+8], scale)]
+    index_distance = distance(i1, i2)
+
+    if not in_zoom:
+        if first_zoom:
+            first_zoom = False
+            zoom_initial_distance = int(index_distance)
+    else:
+        if first_in_zoom:
+            first_in_zoom = False
+            zoom_initial_distance = int(zoom_factor * index_distance / 100)
+
+    zoom_factor = int(zoom_initial_distance * 100 / index_distance)
+
+    if zoom_factor > 100:
+        zoom_factor = 100
+
+    if zoom_factor < 1:
+        zoom_factor = 1
+
+    if zoom_factor == 100:
+        in_zoom = False
+
+    factor = zoom_factor / 100
+
+    height = int(whiteboard_height * factor)
+    off_height = int((whiteboard_height - height) / 2)
+    width = int(whiteboard_width * factor)
+    off_width = int((whiteboard_width - width) / 2)
+
+    w_screen = copy.deepcopy(
+        w_screen_before_zoomed[off_height:whiteboard_height-off_height, off_width:whiteboard_width-off_width]
+    )
+    w_screen = cv.resize(w_screen, (whiteboard_width, whiteboard_height), interpolation=cv.INTER_AREA)
 
 
 def save_screen():
@@ -478,13 +596,12 @@ def backup_screen():
 
 def load_image():
     """ Load an image from the "Saves" subdirectory """
+    global w_screen_cached
     global whiteboard_width
     global whiteboard_height
     global execute
     global loaded
 
-    loaded_height = 0
-    loaded_width = 0
     execute = ""
 
     # Create the sub folder, if it does not exist
@@ -508,6 +625,7 @@ def load_image():
         loaded_height, loaded_width, _ = loaded.shape
         if loaded_height != whiteboard_height or loaded_width != whiteboard_width:
             loaded = cv.resize(loaded, (whiteboard_width, whiteboard_height), interpolation=cv.INTER_AREA)
+            w_screen_cached = copy.deepcopy(loaded)
 
 
 def clear_screen():
@@ -533,11 +651,20 @@ def run():
     global first_color_change
     global scale
     global execute
+    global first_zoom
+    global first_in_zoom
+    global zoom_factor
+    global in_zoom
+    global w_screen
+    global w_screen_before_zoomed
+    global off_width
+    global off_height
+    global kernel_filter
 
     execute = ""
 
     with mp_hands.Hands(
-            max_num_hands=1,
+            max_num_hands=2,
             model_complexity=0,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
@@ -573,6 +700,7 @@ def run():
                         mp_drawing_styles.get_default_hand_connections_style()
                     )
 
+                landmarks = determine_right_left(landmarks)
                 index_tip = landmarks[8]
 
                 # Scale index fingertip position according to the scaling factor
@@ -592,8 +720,55 @@ def run():
                 else:
                     first_draw = True
 
+                if gesture == "zoom":
+                    if in_zoom:
+                        # Check if the user has edited the displayed whiteboard screen
+                        w_shown = cv.resize(
+                            w_screen,
+                            (whiteboard_width - off_width*2, whiteboard_height - off_height*2)
+                        )
+                        w_saved = w_screen_before_zoomed[
+                                    off_height:whiteboard_height - off_height,
+                                    off_width:whiteboard_width - off_width
+                                  ]
+
+                        if not np.array_equal(w_shown, w_saved):
+                            w_screen_tmp = copy.deepcopy(
+                                cv.resize(
+                                    w_screen,
+                                    (whiteboard_width - int(off_width * 2), whiteboard_height - int(off_height * 2))
+                                )
+                            )
+                            w_screen_before_zoomed[
+                                off_height:whiteboard_height - off_height,
+                                off_width:whiteboard_width - off_width
+                            ] = copy.deepcopy(w_screen_tmp)
+
+                            if kernel_filter:
+                                kernel_filter = False
+
+                                # Sharpen the image
+                                w_screen_before_zoomed = copy.deepcopy(
+                                    cv.filter2D(src=w_screen_before_zoomed, ddepth=-1, kernel=kernel_s)
+                                )
+
+                                # Smoothen image
+                                # # Gaussian blur the image
+                                # w_screen_before_zoomed = copy.deepcopy(
+                                #     cv.filter2D(src=w_screen_before_zoomed, ddepth=-1, kernel=kernel_gb)
+                                # )
+
+                    zoom(landmarks)
+                else:
+                    first_zoom = True
+                    first_in_zoom = True
+                    if zoom_factor != 100:
+                        in_zoom = True
+                    else:
+                        kernel_filter = True
+
             show_window(frame, scaled_index_tip, gesture, color_label)
-            reverse_custom_layers()
+            restore_screen()
 
 
 ###################################################################################################
