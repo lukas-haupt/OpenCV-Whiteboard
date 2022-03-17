@@ -75,7 +75,7 @@ FILE_FORMAT = ".jpg"
 cam = None
 cam_width = 640
 cam_height = 480
-SCALED_CAM = (480, 360)
+SCALED_CAM = (240, 160)
 
 w_screen = None
 w_screen_cached = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
@@ -103,6 +103,7 @@ mp_drawing = mp.solutions.drawing_utils
 # mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
+
 def gstreamer_pipeline(
     capture_width=1280,
     capture_height=720,
@@ -129,6 +130,7 @@ def gstreamer_pipeline(
             display_height,
         )
     )
+
 
 def get_screen_resolution():
     """
@@ -165,6 +167,7 @@ def setup_windows():
     global window_name
     global cam_width
     global cam_height
+    global layers
 
     # Setup main window
     cv.namedWindow(window_name, cv.WND_PROP_FULLSCREEN)
@@ -178,13 +181,14 @@ def setup_windows():
     cam.set(cv.CAP_PROP_FRAME_HEIGHT, cam_height)
 
     # Create buttons
-#    create_button("Save")
-#    create_button("Load")
-#    create_button("Clear")
-#    create_button("Exit")
+    create_button("Save")
+    create_button("Load")
+    create_button("Clear")
+    create_button("Exit")
+    print(layers[-1][2])
 
 
-def create_button(label="", size_x=125, size_y=50):
+def create_button(label="", size_x=80, size_y=30):
     """ Create button with label and size """
     global color_options
     global layers
@@ -199,14 +203,14 @@ def create_button(label="", size_x=125, size_y=50):
     label_x = int((size_x - label_size[0]) / 2)
     label_y = int((size_y + label_size[1]) / 2)
 
-    cv.putText(btn, label, (label_x, label_y), FONT, 1, WHITE, 2, LINE_TYPE)
+    cv.putText(btn, label, (label_x, label_y), FONT, 1, WHITE, 1, LINE_TYPE)
 
     # Append buttons to layer array with additional x- and y-offset according to the main window
     if first_append:
         first_append = False
-        layers.append([btn, 100, size_y, label])
+        layers.append([btn, 50, size_y, label])
     else:
-        layers.append([btn, 100, layers[-1][2] + (size_y * 2) if layers else (size_y * 2), label])
+        layers.append([btn, 50, layers[-1][2] + (size_y * 2) if layers else (size_y * 2), label])
 
 
 def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
@@ -228,11 +232,11 @@ def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
             else:
                 lay[0][2:lay[0].shape[0] - 2, 2:lay[0].shape[1] - 2] = GRAY
 
-            label_size = cv.getTextSize(lay[3], FONT, 1, 2)[0]
+            label_size = cv.getTextSize(lay[3], FONT, 1, 1)[0]
             label_x = int((lay[0].shape[1] - label_size[0]) / 2)
             label_y = int((lay[0].shape[0] + label_size[1]) / 2)
 
-            cv.putText(lay[0], lay[3], (label_x, label_y), FONT, 1, WHITE, 2, LINE_TYPE)
+            cv.putText(lay[0], lay[3], (label_x, label_y), FONT, 1, WHITE, 1, LINE_TYPE)
 
     if event == cv.EVENT_LBUTTONDOWN:
         if execute == "Save":
@@ -241,10 +245,8 @@ def check_mouse_event(event=0, mouse_x=0, mouse_y=0, flags=None, userdata=None):
             load_image()
         if execute == "Clear":
             cleared = np.full((whiteboard_height, whiteboard_width, NUMBER_OF_COLOR_CHANNELS), WHITE, np.uint8)
-        # TODO
         if execute == "Exit":
-            cv.getWindowProperty(window_name, cv.WND_PROP_VISIBLE) < 1
-
+            release_variables()
 
 
 def release_variables():
