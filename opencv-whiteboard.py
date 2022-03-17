@@ -740,8 +740,6 @@ def run():
                                 # w_screen_before_zoomed = copy.deepcopy(
                                 #     cv.filter2D(src=w_screen_before_zoomed, ddepth=-1, kernel=kernel_gb)
                                 # )
-                    else:
-                        pass
 
                     zoom(landmarks)
                 else:
