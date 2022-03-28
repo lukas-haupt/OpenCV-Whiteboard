@@ -2,7 +2,7 @@
 - [x] (Lukas) Ladefuntion
 - [x] (Lukas) Speichern mit custom filename sowie über Hand-Geste (Quicksave)
 - [x] (Lukas) Windows/Anzeigen-Layout verändern
-- [x] (Lukas) Auswahl einer benutzerdefinierten Auflösung (Achtung: mit Whiteboard kompatibel) -> Fullscreen
+- [x] (Lukas, Stefan) Auswahl einer benutzerdefinierten Auflösung (Achtung: mit Whiteboard kompatibel) -> Fullscreen
 - [x] (Lukas) Geste für das Radieren ändern
 - [x] (Lukas) Gesten auf Optimalität überprüfen
 - [x] (Lukas) Toolbar in Window benutzen -> Nein
