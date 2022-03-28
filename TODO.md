@@ -14,7 +14,7 @@
 - [x] (Lukas) Programm kann nicht durch ESCAPE (X) im Fenster geschlossen werden
 - [x] (Stefan) Untere Capture-Screen kann nicht für Gesten benutzt werden
 - [x] (Lukas) Ladefunktion -> ValueError: could not broadcast input array from shape (50,125,3) into shape (0,125,3)
-- [x] (Lukas) Fullscreen offset nicht korrekt dargestellt
+- [x] (Stefan, Lukas) Fullscreen offset nicht korrekt dargestellt
 
 # Auf NVIDIA Jetson Nano lauffähig bekommen
 Probleme:
