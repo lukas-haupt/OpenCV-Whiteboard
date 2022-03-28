@@ -36,7 +36,7 @@ This process will take about one hour.
 ```console
 cd mediapipe
 chmod u+x setup_opencv.sh
-sudo ./setup_opencv
+sudo ./setup_opencv.sh
 ```
 
 4. Download (~500 MiB) and install mediapipe wheel
