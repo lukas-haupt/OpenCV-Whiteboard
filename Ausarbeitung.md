@@ -31,7 +31,7 @@ Als Vergleichsachse wurde die Strecke zwischen der Handwurzel (Punkt 0) und den 
 
 Die Berechnung der des Schnittwinkels zur Vertikalen erfolgt nach der Formel
 
-![Formel Schnittwinkel zweier Geraden](images/intersection_angle.png)
+![Formel Schnittwinkel zweier Geraden](images/intersection_angle.svg)
 
 Da der Schnittwinkel zur Vertikalen ermittelt wird, fallen einige Teile der Berechnung weg, sodass das Programm nicht die vollständige Berechnung ausführt.
 Nachdem der Schnittwinkel ermittel wurde wird noch überprüft, ob eine Rotation von über 90° und in welche Richtung diese durchgeführt wird. Da die gewählte Vergleichsachse nicht vertikal ist wird um einen Versatz von 0,5 Rad rotiert. Je nach Rotationsrichtung und Hand wird der Versatz addiert oder Subtrahiert.
