@@ -11,7 +11,6 @@ Stefan Weisbeck
   - Gründe für eigenen Ansatz
   - Rotation
 - Grundfunktionen
-  - Beispiele
 - Features
   - Button-Erweiterung
   - Backup
