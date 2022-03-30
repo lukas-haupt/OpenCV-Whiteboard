@@ -61,7 +61,7 @@ git clone -b jetson-webcam git@github.com:lukas-haupt/OpenCV-Whiteboard.git
 6. Execute
 ```console
 cd OpenCV-Whiteboard
-python3 opencv-whiteboard.py
+python3 opencv-whiteboard_jetson.py
 ```
 
 ### Other systems
