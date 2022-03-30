@@ -24,7 +24,7 @@ Stefan Weisbeck
 
 Die Entwicklung der Anwendung erfolgte wegen Problemen mit dem Mediapipe Paket zunähst auf einem x86_64 PC entwickelt. Daher war zu nicht von Anfang an klar, ob die Anwendung auf einen nVIDIA Jetson Nano portierbar war.
 
-Die größten Probleme bereitete das Mediapipe Paket. Dieses ist als fertiges Paket weder bei den Systempaketquellen noch bei bei Pip verfügbar und. Mediapipe kann auch nicht selbst compiliert werden, da einee Projektabhängigkeit vom Bazel Pakets, welches für ARM nicht verfügbar ist, nicht erfüllt werden kann.
+Die größten Probleme bereitete das Mediapipe Paket. Dieses ist als fertiges Paket weder bei den Systempaketquellen noch bei bei Pip verfügbar und. Mediapipe kann auch nicht selbst compiliert werden, da eine Projektabhängigkeit vom Bazel Pakets, welches für ARM nicht verfügbar ist, nicht erfüllt werden kann.
 
 Als funktionierende Lösung wurden dann ein fertiges Wheel-Paket für Pip eingesetzt. Für OpenCV wurde des Installationsskript von Mediapipe verwendet, welches automatisch die korrekte Version von OpenCV installiert.
 
