@@ -45,7 +45,7 @@ cd
 git clone https://github.com/PINTO0309/mediapipe-bin.git && cd mediapipe-bin
 chmod u+x ./v0.8.5/download.sh && ./v0.8.5/download.sh
 unzip v0.8.5.zip
-sudo pip3 install v0.8.5/numpy119x/py36/mediapipe-0.8.5_cuda102-cp36-cp36m-linux_aarch64.whl dataclasses
+sudo pip3 install v0.8.5/numpy119x/py36/mediapipe-0.8.5_cuda102-cp36-cp36m-linux_aarch64.whl dataclasses screeninfo
 ```
 
 5. Clone Repo
@@ -53,7 +53,6 @@ sudo pip3 install v0.8.5/numpy119x/py36/mediapipe-0.8.5_cuda102-cp36-cp36m-linux
 cd
 git clone -b jetson-webcam git@github.com:lukas-haupt/OpenCV-Whiteboard.git
 cd OpenCV-Whiteboard
-sudo pip3 install -r requirements.txt
 python3 opencv-whiteboard.py
 ```
 
