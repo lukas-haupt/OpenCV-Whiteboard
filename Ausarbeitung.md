@@ -51,7 +51,7 @@ Da die Position im Raum für die Gestenerkennung irrelevant ist, konnte auf eine
 
 Als Vergleichsachse wurde die Strecke zwischen der Handwurzel (Punkt 0) und den Zeigefingeransatzes (Punkt 5) gewählt. Da der Zeigefinder bei allen Gästen zum Einsatz kommt wird hier eine besonders unverfälschte Positionierung erwartet.
 
-![Nummerrierung der Landmarken durch Mediapipe](hand_landmarks.png)
+![Nummerierung der Landmarken durch Mediapipe](images/hand_landmarks.png)
 
 Die Berechnung der des Schnittwinkels zur Vertikalen erfolgt nach der Formel
 
