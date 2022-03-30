@@ -10,10 +10,12 @@ Stefan Weisbeck
 - Gestenerkennung
   - Gründe für eigenen Ansatz
   - Rotation
-  - Beispiel(e)
 - Grundfunktionen
+  - Beispiel(e)
 - Features
-  - Generelle Idee
+  - Button-Erweiterung
+  - Backup
+  - Zoom
 - Kompatibilität mit NVIDIA Jetson Nano
   - Probleme mit Installation von Packages
   - Probleme mit CSI-Kamera
@@ -62,6 +64,14 @@ Die Berechnung der des Schnittwinkels zur Vertikalen erfolgt nach der Formel
 Da der Schnittwinkel zur Vertikalen ermittelt wird, fallen einige Teile der Berechnung weg, sodass das Programm nicht die vollständige Berechnung ausführt.
 Nachdem der Schnittwinkel ermittel wurde wird noch überprüft, ob eine Rotation von über 90° und in welche Richtung diese durchgeführt wird. Da die gewählte Vergleichsachse nicht vertikal ist wird um einen Versatz von 0,5 Rad rotiert. Je nach Rotationsrichtung und Hand wird der Versatz addiert oder Subtrahiert.
 
+
+## Grundfunktionen
+Die dargestellten Abbildungen (siehe Beispiele) repräsentieren die verschiedenen Gesten.
+Es sollte im Optimalfall darauf geachtet werden, einen möglichst freien, eintönigen (weißen) Hintergrund zu benutzen, da andernfalls Berechnungen von Mediapipe zu verfälschten Ergebnissen führen können. Aufgrund dessen erweist sich die Benutzung gelegentlich als äußerst schwierig.
+Probleme die hier angesprochen werden sind in der Praxis häufig eine falsche Erkennung einer Geste oder einer Hand.
+
+Generell wird das Whiteboard bezüglich der Manipulation eines Bildes über Gesten gesteuert. Funktionen, die sich aufgrund der Rotation verändern, betreffen das Speichern, Laden, sowie das Löschen des Whiteboard-Screens.
+
 ### Beispiele
 ![Zeichnen](images/draw.png)
 ![Radieren](images/erase.png)
@@ -70,6 +80,28 @@ Nachdem der Schnittwinkel ermittel wurde wird noch überprüft, ob eine Rotation
 ![Farbwechsel](images/switch_color.png)
 ![Zoom-Modus](images/zoom.png)
 
+## Features
 
-## Grundfunktionen
+### Button-Erweiterung
+Der Aufbau eines Buttons besteht aus einem zweidimensionalen Array, welches zuzüglich Hintergrundfarbe und Titel mittels OpenCV erstellt wird. Die Buttons werden mit bestimmten Abständen dynamisch in das Hauptfenster eingebunden. Die Veränderung des Designs und die Funktionalität erfolgen über sogenannte "Mouse-Events". Die Hintergrundfarbe wird überschrieben, sobald der Mauszeiger über dem Button liegt. Klickt man anschließend auf den Button, so wird abhängig vom Titel des Buttons die jeweilige Funktion ausgeführt.
 
+![Liste der Buttons](images/buttonlist.png)
+
+Die oben aufgelisteten Funktionen (Speichern, Laden und Löschen sowie das Schließen des Programmes) werden über diese Button-Funktionalität realisiert. Bewegt der Benutzer den Mauszeiger über einen beliebigen Button, so wird dieser farblich verändert.
+
+![Löschen](images/clearbutton.png)
+![Mauszeiger über Löschen-Button](images/clearbutton_hover.png)
+
+Wird die Speicher-/Lade-Funktion ausgeführt, so öffnet sich ein externes Fenster (siehe folgende Abbildung), in dem der Benutzer das Bild mit einem benutzerdefinierten Namen abspeichern oder ein unabhängiges Bild laden kann. Ein weiterer Button existiert für das Löschen des Bildes. Hier wird das Whiteboard mit einem neuen, leeren Array initialisiert. Zusätzlich lässt sich die Anwendung auch über einen separaten Button beenden. Dabei werden alle "OpenCV"-abhägingen Variablen freigegeben.
+
+![Speicherdialog](images/savedialog.png)
+
+### Backup
+Als weiteres Feature verfügt die Applikation über einen Backup-Mechanismus, der im Falle eines Absturzes des Programmes, den bisherigen Stand des Whiteboard-Screens sichert.
+Erfahrungen zufolge tritt dies beispielsweise dann auf, wenn die Kamera unerwartet abstürzt. Erreicht wird diese Funktionalität durch eine Ausführung der Speicherfunktion mit statischem Dateinamen.
+
+### Zoom
+Das Zoomen erfolgt nach einem speziellen Ablauf. Zuerst wird eine Sicherung vom aktuellen Whiteboard-Screen erstellt. Anschließend wird mit der Zoom-Geste kein Zoom-Faktor berechnet, mit dem der neue Screen (ein Teilabschnitt des Original-Screens) berechnet wird. Dieser Teilabschnitt wieder wieder auf die Original-Auflösung erweitert.
+
+Wird nun das skalierte Whiteboard bearbeitet und zurückgezoomt, so überschreibt dieser Teilabschnitt den äquivalenten Bereich auf dem zuvor gesicherten Originalbild.
+Da die Skalierung zu einer Unschärfe des Bildes bei dem Zurückbilden auf das Originalbild führt, werden nachträglich bestimmte Filter zur Wiederherstellung der Schärfe des Bildes angewendet.
