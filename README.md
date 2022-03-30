@@ -14,6 +14,9 @@ Mediapipe is used to track hand movements, OpenCV for hand gesture recognition a
 <br>
 For more information see requirements.txt
 
+## Youtube link
+https://youtu.be/9AbmNDHKfW4
+
 ## Installation and execution
 
 ### nVIDIA Jetson Nano 4GB
