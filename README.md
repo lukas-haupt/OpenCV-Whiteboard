@@ -55,7 +55,7 @@ sudo pip3 install v0.8.5/numpy119x/py36/mediapipe-0.8.5_cuda102-cp36-cp36m-linux
 5. Clone Repo
 ```console
 cd
-git clone -b jetson-webcam git@github.com:lukas-haupt/OpenCV-Whiteboard.git
+git clone git@github.com:lukas-haupt/OpenCV-Whiteboard.git
 ```
 
 6. Execute
