@@ -66,7 +66,7 @@ Nachdem der Schnittwinkel ermittel wurde wird noch überprüft, ob eine Rotation
 
 
 ## Grundfunktionen
-Die dargestellten Abbildungen (siehe Beispiele) repräsentieren die verschiedenen Gesten.
+Die dargestellten Abbildungen (siehe Figure 2-7) repräsentieren die verschiedenen Gesten.
 Es sollte im Optimalfall darauf geachtet werden, einen möglichst freien, eintönigen (weißen) Hintergrund zu benutzen, da andernfalls Berechnungen von Mediapipe zu verfälschten Ergebnissen führen können. Aufgrund dessen erweist sich die Benutzung gelegentlich als äußerst schwierig.
 Probleme die hier angesprochen werden sind in der Praxis häufig eine falsche Erkennung einer Geste oder einer Hand.
 
@@ -92,7 +92,7 @@ Die oben aufgelisteten Funktionen (Speichern, Laden und Löschen sowie das Schli
 ![Löschen](images/clearbutton.png)
 ![Mauszeiger über Löschen-Button](images/clearbutton_hover.png)
 
-Wird die Speicher-/Lade-Funktion ausgeführt, so öffnet sich ein externes Fenster (siehe folgende Abbildung), in dem der Benutzer das Bild mit einem benutzerdefinierten Namen abspeichern oder ein unabhängiges Bild laden kann. Ein weiterer Button existiert für das Löschen des Bildes. Hier wird das Whiteboard mit einem neuen, leeren Array initialisiert. Zusätzlich lässt sich die Anwendung auch über einen separaten Button beenden. Dabei werden alle "OpenCV"-abhägingen Variablen freigegeben.
+Wird die Speicher-/Lade-Funktion ausgeführt, so öffnet sich ein externes Fenster (siehe Figure 9), in dem der Benutzer das Bild mit einem benutzerdefinierten Namen abspeichern oder ein unabhängiges Bild laden kann. Ein weiterer Button existiert für das Löschen des Bildes. Hier wird das Whiteboard mit einem neuen, leeren Array initialisiert. Zusätzlich lässt sich die Anwendung auch über einen separaten Button beenden. Dabei werden alle "OpenCV"-abhägingen Variablen freigegeben.
 
 ![Speicherdialog](images/savedialog.png)
 
