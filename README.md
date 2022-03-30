@@ -16,7 +16,11 @@ For more information see requirements.txt
 
 ## Installation and execution
 
-### Jetson Nano
+### nVIDIA Jetson Nano 4GB
+
+We highly recommended to use a fresh installed Jetson Nano for the installation of Mediapipe.
+
+A Jetson Nano with 4 GiB of RAM and the 2 Gib of swap space set up during installation does not require additional swapspace.
 
 1. Update System
 ```console
@@ -52,6 +56,10 @@ sudo pip3 install v0.8.5/numpy119x/py36/mediapipe-0.8.5_cuda102-cp36-cp36m-linux
 ```console
 cd
 git clone -b jetson-webcam git@github.com:lukas-haupt/OpenCV-Whiteboard.git
+```
+
+6. Execute
+```console
 cd OpenCV-Whiteboard
 python3 opencv-whiteboard.py
 ```
